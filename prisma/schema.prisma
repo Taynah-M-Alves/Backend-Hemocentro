@@ -1,0 +1,99 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ResultadoTeste {
+  NR       // Nenhum resultado
+  POSITIVO
+  NEGATIVO
+}
+
+model Paciente {
+  id              String   @id @default(uuid()) @db.Uuid
+  nome            String   @db.VarChar(255)
+  racaCor         String?  @map("raca_cor") @db.VarChar(50)
+  aboRh           String?  @map("abo_rh") @db.VarChar(10)
+  dataNascimento  DateTime @map("data_nascimento") @db.Date
+  prontuario      Int?     @unique // Marcado como opcional e único (ajuste se for obrigatório)
+  diagnostico     String?  @db.VarChar(255)
+  nomeMae         String?  @map("nome_mae") @db.VarChar(255)
+
+  // Relacionamentos 1:N (Paciente pode ter nenhuma, uma ou várias)
+  fichasTransfusionais FichaTransfusional[]
+  pesquisasAnticorpos  PesquisaAnticorpos[]
+
+  @@map("paciente")
+}
+
+model Cidade {
+  id         Int    @id @default(autoincrement())
+  nomeCidade String @map("nome_cidade") @db.VarChar(120)
+  uf         String @db.VarChar(2)
+
+  // Relacionamentos reversos
+  fichasTransfusionais FichaTransfusional[]
+
+  @@map("cidade")
+}
+
+model Colaborador {
+  id   Int    @id @default(autoincrement())
+  nome String @db.VarChar(255)
+
+  // Relacionamentos reversos
+  fichasLiberadas      FichaTransfusional[] @relation("ResponsavelLiberacao")
+  pesquisasRealizadas  PesquisaAnticorpos[] @relation("ResponsavelPesquisa")
+
+  @@map("colaborador")
+}
+
+model FichaTransfusional {
+  id                  Int            @id @default(autoincrement())
+  dataEnvio           DateTime       @map("data_envio") @db.Date
+  tipoHemocomponente  String         @map("tipo_hemocomponente") @db.VarChar(100)
+  numeroDoacao        Int            @map("numero_doacao")
+  grsRhd              String         @map("grs_rhd") @db.VarChar(50)
+  volMl               Int            @map("vol_ml")
+  testesPai           ResultadoTeste @map("testes_pai")
+  provaCruzada        ResultadoTeste @map("prova_cruzada")
+
+  // FK Paciente
+  pacienteId          String         @map("paciente_id") @db.Uuid
+  paciente            Paciente       @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  // FK Cidade (Destino)
+  cidadeDestinoId     Int            @map("cidade_destino_id")
+  cidadeDestino       Cidade         @relation(fields: [cidadeDestinoId], references: [id])
+
+  // FK Colaborador (Responsável Liberação)
+  responsavelLiberacaoId Int         @map("responsavel_liberacao_id")
+  responsavelLiberacao   Colaborador @relation("ResponsavelLiberacao", fields: [responsavelLiberacaoId], references: [id])
+
+  @@map("ficha_transfusional")
+}
+
+model PesquisaAnticorpos {
+  id                    Int         @id @default(autoincrement())
+  gs                    String      @db.VarChar(10)
+  rh                    String      @db.VarChar(10)
+  tad                   String      @db.VarChar(50)
+  pai                   String      @db.VarChar(50)
+  autocontrole          String      @db.VarChar(50)
+  interpretacao         String?     @db.VarChar(255)
+  data                  DateTime    @db.Date
+
+  // FK Paciente
+  pacienteId            String      @map("paciente_id") @db.Uuid
+  paciente              Paciente    @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  // FK Colaborador (Responsável Pesquisa)
+  responsavelPesquisaId Int         @map("responsavel_pesquisa_id")
+  responsavelPesquisa   Colaborador @relation("ResponsavelPesquisa", fields: [responsavelPesquisaId], references: [id])
+
+  @@map("pesquisa_anticorpos")
+}
