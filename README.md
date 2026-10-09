@@ -6,7 +6,7 @@
 
 ### 1. Clonar o repositório e entrar na pasta
 ```bash
-git clone [https://github.com/Taynah-M-Alves/Backend-Hemocentro.git](https://github.com/Taynah-M-Alves/Backend-Hemocentro.git)
+git clone https://github.com/Taynah-M-Alves/Backend-Hemocentro.git
 ```
 ```bash
 cd Backend-Hemocentro
@@ -26,7 +26,7 @@ $ npx prisma generate
 $ npx prisma db push
 ```
 
-*é necessario ter adicionado o database_url na env para o comando `npx prisma db push` funcionar*
+**é necessario ter adicionado o database_url na env para o comando `npx prisma db push` funcionar**
 
 ## Compile and run the project
 
