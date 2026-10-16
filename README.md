@@ -33,17 +33,17 @@ $ npx prisma db push
 `POST /ocr/extract` recebe a ficha (PDF, JPEG ou PNG, campo `file`), lê os dados e grava
 paciente, transfusões e pesquisas de anticorpos no banco.
 
-A leitura tenta, nesta ordem: **OpenAI → OpenRouter → Gemini → Tesseract (local)**. Se um falhar, o erro
-aparece em `tentativas` na resposta e o próximo é usado. Configure no `.env` (veja `.env.example`):
+As páginas são convertidas em imagem e enviadas para uma IA com visão, que lê os campos
+manuscritos. A leitura tenta, nesta ordem: **Gemini → Groq → OpenRouter → OpenAI**. Se uma falhar,
+o erro aparece em `tentativas` na resposta e a próxima é usada. Configure pelo menos uma chave no
+`.env` (veja `.env.example`):
 
 ```
-OPENAI_API_KEY=...       # chave da OpenAI (sk-...)
-OPENROUTER_API_KEY=...   # chave da OpenRouter (sk-or-v1-...)
 GEMINI_API_KEY=...
+GROQ_API_KEY=...
+OPENROUTER_API_KEY=...   # chave da OpenRouter (sk-or-v1-...)
+OPENAI_API_KEY=...       # chave da OpenAI (sk-...)
 ```
-
-O Tesseract não precisa de chave, mas não lê letra manuscrita: ele só serve de último recurso
-para os dados do cabeçalho e recusa a ficha quando não consegue ler nome e data de nascimento.
 
 ## Compile and run the project
 
