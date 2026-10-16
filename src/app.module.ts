@@ -1,10 +1,19 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './controllers/app.controller.js';
-import { AppService } from './services/app.service.js';
+import { OcrController } from './controllers/ocr.controller.js';
+import { AiExtractionService } from './services/ai-extraction.service.js';
+import { DocumentoImagemService } from './services/documento-imagem.service.js';
+import { FichaPersistenciaService } from './services/ficha-persistencia.service.js';
+import { OcrService } from './services/ocr.service.js';
+import { PrismaService } from './services/prisma.service.js';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [OcrController],
+  providers: [
+    PrismaService,
+    OcrService,
+    DocumentoImagemService,
+    AiExtractionService,
+    FichaPersistenciaService,
+  ],
 })
 export class AppModule {}

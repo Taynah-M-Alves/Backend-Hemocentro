@@ -45,6 +45,23 @@ OPENROUTER_API_KEY=...   # chave da OpenRouter (sk-or-v1-...)
 OPENAI_API_KEY=...       # chave da OpenAI (sk-...)
 ```
 
+### Estrutura
+
+```
+src/
+├── config/upload.config.ts      # multer: pasta, nome do arquivo, tamanho e tipos aceitos
+├── controllers/ocr.controller.ts # POST /ocr/extract
+├── prompts/                     # instruções enviadas para a IA
+├── services/
+│   ├── ocr.service.ts               # coordena: arquivo → imagens → IA → banco
+│   ├── documento-imagem.service.ts  # PDF/foto → uma imagem JPEG por página
+│   ├── ai-extraction.service.ts     # Gemini → Groq → OpenRouter → OpenAI
+│   ├── ficha-persistencia.service.ts # grava paciente, transfusões e pesquisas (transação)
+│   └── prisma.service.ts            # conexão com o banco
+├── types/                       # ficha.types.ts (dados da ficha) e ocr.types.ts (fluxo e resposta)
+└── utils/                       # ficha-sanitize.ts (confere a resposta da IA) e erros.ts
+```
+
 ## Compile and run the project
 
 ```bash
