@@ -15,15 +15,43 @@ enum ResultadoTeste {
   NEGATIVO
 }
 
+enum Raca {
+  Branco       // Nenhum resultado
+  Preto
+  Pardo
+  Amarelo
+  Indígena
+}
+
+enum Abo {
+  A_POSITIVO  @map("A+")
+  A_NEGATIVO  @map("A-")
+  B_POSITIVO  @map("B+")
+  B_NEGATIVO  @map("B-")
+  AB_POSITIVO @map("AB+")
+  AB_NEGATIVO @map("AB-")
+  O_POSITIVO  @map("O+")
+  O_NEGATIVO  @map("O-")
+}
+
+enum Rh {
+  Positivo
+  Negativo
+  Nao_Determinado
+}
+
 model Paciente {
   id              String   @id @default(uuid()) @db.Uuid
   nome            String   @db.VarChar(255)
-  racaCor         String?  @map("raca_cor") @db.VarChar(50)
-  aboRh           String?  @map("abo_rh") @db.VarChar(10)
+  raca            Raca     @map("raca_cor") 
+  aboRh           Abo      @map("abo_rh")
   dataNascimento  DateTime @map("data_nascimento") @db.Date
-  prontuario      Int?     @unique // Marcado como opcional e único (ajuste se for obrigatório)
+  prontuario      Int?     @unique
   diagnostico     String?  @db.VarChar(255)
   nomeMae         String?  @map("nome_mae") @db.VarChar(255)
+  municipioId     Int?     @map("municipio_paciente_id")
+
+  municipio       Cidade?  @relation(fields: [municipioId], references: [id])
 
   // Relacionamentos 1:N (Paciente pode ter nenhuma, uma ou várias)
   fichasTransfusionais FichaTransfusional[]
@@ -39,6 +67,7 @@ model Cidade {
 
   // Relacionamentos reversos
   fichasTransfusionais FichaTransfusional[]
+  pacientes            Paciente[]
 
   @@map("cidade")
 }
@@ -59,7 +88,7 @@ model FichaTransfusional {
   dataEnvio           DateTime       @map("data_envio") @db.Date
   tipoHemocomponente  String         @map("tipo_hemocomponente") @db.VarChar(100)
   numeroDoacao        String         @unique @map("numero_doacao") @db.VarChar(30)
-  grsRhd              String         @map("grs_rhd") @db.VarChar(50)
+  grsRhd              Abo            @map("grs_rhd") 
   volMl               Int            @map("vol_ml")
   testesPai           ResultadoTeste @map("testes_pai")
   provaCruzada        ResultadoTeste @map("prova_cruzada")
@@ -81,13 +110,13 @@ model FichaTransfusional {
 
 model PesquisaAnticorpos {
   id                    Int         @id @default(autoincrement())
-  gs                    String      @db.VarChar(10)
-  rh                    String      @db.VarChar(10)
+  gs                    Abo         
+  rh                    Rh     
   tad                   String?     @db.VarChar(50)
   pai                   String?     @db.VarChar(50)
   autocontrole          String?     @db.VarChar(50)
   interpretacao         String?     @db.VarChar(255)
-  data                  DateTime    @db.Date
+  dataPesquisa          DateTime    @db.Date
 
   // FK Paciente
   pacienteId            String      @map("paciente_id") @db.Uuid
