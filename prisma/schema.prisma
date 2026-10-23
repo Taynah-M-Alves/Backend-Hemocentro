@@ -9,20 +9,28 @@ generator client {
   importFileExtension = "js"
 }
 
+// ─── Enums clínicos ──────────────────────────────────────────────────────────
+
 enum ResultadoTeste {
-  NR       // Nenhum resultado
+  NAO_REALIZADO // Não realizado
   POSITIVO
   NEGATIVO
 }
 
 enum Raca {
-  Branco       // Nenhum resultado
-  Preto
-  Pardo
-  Amarelo
-  Indígena
+  BRANCO   @map("Branco")
+  PRETO    @map("Preto")
+  PARDO    @map("Pardo")
+  AMARELO  @map("Amarelo")
+  INDIGENA @map("Indígena")
 }
 
+enum Sexo {
+  F @map("Feminino")
+  M @map("Masculino")
+}
+
+/// Grupo ABO com o fator Rh (ABO/Rh do paciente, GR.S/RhD da transfusão)
 enum Abo {
   A_POSITIVO  @map("A+")
   A_NEGATIVO  @map("A-")
@@ -34,29 +42,83 @@ enum Abo {
   O_NEGATIVO  @map("O-")
 }
 
-enum Rh {
-  Positivo
-  Negativo
-  Nao_Determinado
+/// Só o grupo, sem o Rh: campo "GS" / "Grupo sanguíneo" das pesquisas (o Rh tem campo próprio)
+enum GrupoAbo {
+  A
+  B
+  AB
+  O
 }
 
+enum Rh {
+  POSITIVO
+  NEGATIVO
+  NAO_DETERMINADO
+}
+
+/// Folhas Bio-Rad: ID-DiaCell I-II (triagem) e ID-DiaPanel (identificação de anticorpos)
+enum TipoKitId {
+  DIACELL
+  DIAPANEL
+}
+
+// ─── Enums do fluxo de revisão ───────────────────────────────────────────────
+
+enum StatusFicha {
+  ENVIADA // arquivo salvo, esperando a IA
+  LENDO // IA processando
+  FALHA_LEITURA // nenhuma IA leu; pode ser reprocessada
+  AGUARDANDO_REVISAO
+  EM_REVISAO
+  COM_PENDENCIA
+  VALIDADA
+}
+
+enum TipoEvento {
+  LOTE_ENVIADO
+  LEITURA_CONCLUIDA
+  LEITURA_FALHOU
+  REPROCESSAMENTO
+  REVISAO_INICIADA
+  REVISAO_ASSUMIDA
+  CAMPO_EDITADO
+  PENDENCIA_SINALIZADA
+  FICHA_VALIDADA
+  VINCULO_CONFIRMADO
+  CONSULTA
+}
+
+// ─── Paciente e cadastros auxiliares ─────────────────────────────────────────
+
 model Paciente {
-  id              String   @id @default(uuid()) @db.Uuid
-  nome            String   @db.VarChar(255)
-  raca            Raca     @map("raca_cor") 
-  aboRh           Abo      @map("abo_rh")
-  dataNascimento  DateTime @map("data_nascimento") @db.Date
-  prontuario      Int?     @unique
-  diagnostico     String?  @db.VarChar(255)
-  nomeMae         String?  @map("nome_mae") @db.VarChar(255)
-  municipioId     Int?     @map("municipio_paciente_id")
+  id             String   @id @default(uuid()) @db.Uuid
+  nome           String   @db.VarChar(255)
+  nomeSocial     String?  @map("nome_social") @db.VarChar(255) // "Apelido / Nome social"
+  sexo           Sexo?
+  raca           Raca?    @map("raca_cor")
+  aboRh          Abo?     @map("abo_rh")
+  dataNascimento DateTime @map("data_nascimento") @db.Date
+  prontuario     Int?     @unique
+  cpf            String?  @unique @db.VarChar(11)
+  cartaoSus      String?  @unique @map("cartao_sus") @db.VarChar(15)
+  diagnostico    String?  @db.VarChar(255)
+  nomeMae        String?  @map("nome_mae") @db.VarChar(255)
+  nomePai        String?  @map("nome_pai") @db.VarChar(255)
+  alergias       String?  @db.VarChar(255) // null = não informado (não significa "sem alergias")
+  municipioId    Int?     @map("municipio_paciente_id")
 
-  municipio       Cidade?  @relation(fields: [municipioId], references: [id])
+  municipio Cidade? @relation(fields: [municipioId], references: [id])
 
-  // Relacionamentos 1:N (Paciente pode ter nenhuma, uma ou várias)
   fichasTransfusionais FichaTransfusional[]
   pesquisasAnticorpos  PesquisaAnticorpos[]
+  kitsId               KitId[]
+  fichasDigitalizadas  FichaDigitalizada[]  @relation("FichaPaciente")
+  fichasSemelhantes    FichaDigitalizada[]  @relation("FichaPacienteSugerido")
+  eventos              EventoAuditoria[]
 
+  // Busca de duplicidade: nome + nascimento + nome da mãe (CPF costuma faltar no original)
+  @@index([nome, dataNascimento])
+  @@index([nomeMae])
   @@map("paciente")
 }
 
@@ -65,66 +127,261 @@ model Cidade {
   nomeCidade String @map("nome_cidade") @db.VarChar(120)
   uf         String @db.VarChar(2)
 
-  // Relacionamentos reversos
   fichasTransfusionais FichaTransfusional[]
   pacientes            Paciente[]
 
+  @@unique([nomeCidade, uf])
   @@map("cidade")
 }
 
+/// Profissionais do hemocentro citados no papel (quem liberou a transfusão, solicitante da pesquisa).
+/// Nem toda colaboradora usa o sistema; quem usa tem um Usuario ligado a ela.
 model Colaborador {
   id   Int    @id @default(autoincrement())
   nome String @db.VarChar(255)
 
-  // Relacionamentos reversos
-  fichasLiberadas      FichaTransfusional[] @relation("ResponsavelLiberacao")
-  pesquisasRealizadas  PesquisaAnticorpos[] @relation("ResponsavelPesquisa")
+  usuario Usuario?
+
+  fichasLiberadas     FichaTransfusional[] @relation("ResponsavelLiberacao")
+  pesquisasRealizadas PesquisaAnticorpos[] @relation("ResponsavelPesquisa")
 
   @@map("colaborador")
 }
 
+// ─── Registros clínicos (só entram aqui depois da validação humana) ──────────
+
+/// Uma linha da Ficha Transfusional Imuno-Hematologia Receptor
 model FichaTransfusional {
-  id                  Int            @id @default(autoincrement())
-  dataEnvio           DateTime       @map("data_envio") @db.Date
-  tipoHemocomponente  String         @map("tipo_hemocomponente") @db.VarChar(100)
-  numeroDoacao        String         @unique @map("numero_doacao") @db.VarChar(30)
-  grsRhd              Abo            @map("grs_rhd") 
-  volMl               Int            @map("vol_ml")
-  testesPai           ResultadoTeste @map("testes_pai")
-  provaCruzada        ResultadoTeste @map("prova_cruzada")
+  id                 Int            @id @default(autoincrement())
+  dataEnvio          DateTime       @map("data_envio") @db.Date
+  tipoHemocomponente String         @map("tipo_hemocomponente") @db.VarChar(100)
+  numeroDoacao       String         @unique @map("numero_doacao") @db.VarChar(30)
+  numeroServico      String?        @map("numero_servico") @db.VarChar(30)
+  tracejador         String?        @db.VarChar(50)
+  grsRhd             Abo            @map("grs_rhd")
+  volMl              Int            @map("vol_ml")
+  testesPai          ResultadoTeste @map("testes_pai")
+  provaCruzada       ResultadoTeste @map("prova_cruzada")
 
-  // FK Paciente
-  pacienteId          String         @map("paciente_id") @db.Uuid
-  paciente            Paciente       @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  pacienteId String   @map("paciente_id") @db.Uuid
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
 
-  // FK Cidade (Destino)
-  cidadeDestinoId     Int?           @map("cidade_destino_id")
-  cidadeDestino       Cidade?        @relation(fields: [cidadeDestinoId], references: [id])
+  cidadeDestinoId Int?    @map("cidade_destino_id")
+  cidadeDestino   Cidade? @relation(fields: [cidadeDestinoId], references: [id])
 
-  // FK Colaborador (Responsável Liberação)
-  responsavelLiberacaoId Int?        @map("responsavel_liberacao_id")
+  responsavelLiberacaoId Int?         @map("responsavel_liberacao_id")
   responsavelLiberacao   Colaborador? @relation("ResponsavelLiberacao", fields: [responsavelLiberacaoId], references: [id])
+
+  // Origem: de qual ficha digitalizada e página veio o dado (rastreabilidade)
+  fichaDigitalizadaId Int?               @map("ficha_digitalizada_id")
+  fichaDigitalizada   FichaDigitalizada? @relation(fields: [fichaDigitalizadaId], references: [id])
+  pagina              Int?
 
   @@map("ficha_transfusional")
 }
 
+/// Pesquisa Imuno Hematológica (MTHEMO.GDL.IMUNOREC.PIH)
 model PesquisaAnticorpos {
-  id                    Int         @id @default(autoincrement())
-  gs                    Abo         
-  rh                    Rh     
-  tad                   String?     @db.VarChar(50)
-  pai                   String?     @db.VarChar(50)
-  autocontrole          String?     @db.VarChar(50)
-  interpretacao         String?     @db.VarChar(255)
-  dataPesquisa          DateTime    @db.Date
+  id             Int       @id @default(autoincrement())
+  dataPesquisa   DateTime  @map("data_pesquisa") @db.Date
+  gs             GrupoAbo?
+  rh             Rh? // "Fator Rh"
+  dFraco         String?   @map("d_fraco") @db.VarChar(50)
+  pai            String?   @db.VarChar(50) // Pesquisa de anticorpos irregulares
+  tad            String?   @db.VarChar(50) // Teste da antiglobulina humana
+  autocontrole   String?   @db.VarChar(50)
+  dcScreening    String?   @map("dc_screening") @db.VarChar(50) // Antiglobulina monoespecífico DC-Screening I
+  especificidade String?   @db.VarChar(255) // Identificação de anticorpos irregulares
+  interpretacao  String?   @db.VarChar(255)
+  observacao     String?   @db.VarChar(255)
+  amostra        String?   @db.VarChar(50) // ex.: EDTA
+  metodologia    String?   @db.VarChar(100) // ex.: Gel/Centrifugação
 
-  // FK Paciente
-  pacienteId            String      @map("paciente_id") @db.Uuid
-  paciente              Paciente    @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  pacienteId String   @map("paciente_id") @db.Uuid
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
 
-  // FK Colaborador (Responsável Pesquisa) — opcional: as fichas Bio-Rad não trazem responsável
-  responsavelPesquisaId Int?        @map("responsavel_pesquisa_id")
+  // Solicitante da pesquisa
+  responsavelPesquisaId Int?         @map("responsavel_pesquisa_id")
   responsavelPesquisa   Colaborador? @relation("ResponsavelPesquisa", fields: [responsavelPesquisaId], references: [id])
 
+  fenotipagem FenotipagemAntigeno[]
+
+  fichaDigitalizadaId Int?               @map("ficha_digitalizada_id")
+  fichaDigitalizada   FichaDigitalizada? @relation(fields: [fichaDigitalizadaId], references: [id])
+  pagina              Int?
+
   @@map("pesquisa_anticorpos")
+}
+
+/// Fenotipagem eritrocitária: um resultado por antígeno (C, c, E, e, Kell, k, Kpa, Kpb, Jka, Jkb,
+/// M, N, S, s, Fya, Fyb, P1, Lea, Leb, Lua, Lub)
+model FenotipagemAntigeno {
+  id         Int    @id @default(autoincrement())
+  pesquisaId Int    @map("pesquisa_id")
+  antigeno   String @db.VarChar(10)
+  resultado  String @db.VarChar(5) // 0, 1+, 2+, 3+, 4+
+
+  pesquisa PesquisaAnticorpos @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
+
+  @@unique([pesquisaId, antigeno])
+  @@map("fenotipagem_antigeno")
+}
+
+/// Folhas Bio-Rad ID-DiaCell I-II e ID-DiaPanel (só os campos manuscritos; a tabela de antígenos é impressa)
+model KitId {
+  id            Int       @id @default(autoincrement())
+  tipo          TipoKitId
+  dataPesquisa  DateTime  @map("data_pesquisa") @db.Date
+  gs            GrupoAbo?
+  rh            Rh?
+  tad           String?   @db.VarChar(50)
+  pai           String?   @db.VarChar(50)
+  autocontrole  String?   @db.VarChar(50)
+  interpretacao String?   @db.VarChar(255) // ex.: Anti-c pequeno
+  tecnica       String?   @db.VarChar(100) // "Técnica utilizada" (DiaPanel)
+  observacao    String?   @db.VarChar(255) // "Observação" (DiaCell)
+
+  pacienteId String   @map("paciente_id") @db.Uuid
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  resultados ResultadoCelula[]
+
+  fichaDigitalizadaId Int?               @map("ficha_digitalizada_id")
+  fichaDigitalizada   FichaDigitalizada? @relation(fields: [fichaDigitalizadaId], references: [id])
+  pagina              Int?
+
+  @@map("kit_id")
+}
+
+/// Resultado de cada célula do kit (I e II no DiaCell; 1 a 11 no DiaPanel)
+model ResultadoCelula {
+  id         Int     @id @default(autoincrement())
+  kitId      Int     @map("kit_id")
+  celula     Int
+  lissCoombs String? @map("liss_coombs") @db.VarChar(5) // 0, 1+ … 4+
+  enzima     String? @db.VarChar(5)
+
+  kit KitId @relation(fields: [kitId], references: [id], onDelete: Cascade)
+
+  @@unique([kitId, celula])
+  @@map("resultado_celula")
+}
+
+// ─── Fluxo de envio e revisão (telas: Upload, Fila, Revisar, Auditoria) ──────
+
+/// Quem usa o sistema. Todos têm o mesmo acesso (sem perfis).
+model Usuario {
+  id            Int     @id @default(autoincrement())
+  nome          String  @db.VarChar(255)
+  email         String  @unique @db.VarChar(255)
+  ativo         Boolean @default(true)
+  colaboradorId Int?    @unique @map("colaborador_id") // só quando o usuário também é colaboradora
+
+  colaborador     Colaborador?        @relation(fields: [colaboradorId], references: [id])
+  lotesEnviados   Lote[]
+  fichasEmRevisao FichaDigitalizada[] @relation("Revisor")
+  fichasValidadas FichaDigitalizada[] @relation("Validador")
+  eventos         EventoAuditoria[]
+
+  @@map("usuario")
+}
+
+/// Um envio de arquivos (ex.: DEM-012, 24 arquivos)
+model Lote {
+  id           Int      @id @default(autoincrement()) // código de exibição DEM-012 é calculado do id
+  nome         String   @db.VarChar(120)
+  enviadoPorId Int      @map("enviado_por_id")
+  enviadoEm    DateTime @default(now()) @map("enviado_em")
+
+  enviadoPor Usuario           @relation(fields: [enviadoPorId], references: [id])
+  documentos Documento[]
+  eventos    EventoAuditoria[]
+
+  @@map("lote")
+}
+
+/// Arquivo original enviado (PDF, JPEG ou PNG), guardado em ./uploads e enviado direto para a IA
+model Documento {
+  id           Int      @id @default(autoincrement())
+  loteId       Int      @map("lote_id")
+  chave        String   @unique @db.VarChar(100) // nome do arquivo em ./uploads
+  nomeOriginal String   @map("nome_original") @db.VarChar(255)
+  mimeType     String   @map("mime_type") @db.VarChar(50)
+  tamanhoBytes Int      @map("tamanho_bytes")
+  sha256       String   @db.Char(64) // detecta o mesmo arquivo enviado de novo
+  totalPaginas Int?     @map("total_paginas")
+  provedorIa   String?  @map("provedor_ia") @db.VarChar(20) // qual IA leu: gemini, groq, openrouter, openai
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  lote    Lote               @relation(fields: [loteId], references: [id])
+  ficha   FichaDigitalizada?
+  eventos EventoAuditoria[]
+
+  @@index([loteId])
+  @@index([sha256])
+  @@map("documento")
+}
+
+/// Uma ficha em revisão (ex.: FIC-0320). Os dados da IA ficam em `dadosExtraidos` até a validação;
+/// só então viram linhas em FichaTransfusional, PesquisaAnticorpos e KitId.
+model FichaDigitalizada {
+  id                 Int         @id @default(autoincrement())
+  documentoId        Int         @unique @map("documento_id") // um arquivo = uma ficha
+  status             StatusFicha @default(ENVIADA)
+  erroLeitura        String?     @map("erro_leitura") @db.Text // por que a IA não leu
+  tentativasLeitura  Int         @default(0) @map("tentativas_leitura")
+  proximaTentativaEm DateTime?   @map("proxima_tentativa_em")
+  dataAtendimento    DateTime?   @map("data_atendimento") @db.Date
+  motivo             String?     @db.VarChar(255) // motivo transcrito
+  dadosExtraidos     Json?       @map("dados_extraidos") // sugestão da IA, ainda não validada
+  pacienteId         String?     @map("paciente_id") @db.Uuid // vínculo confirmado
+  pacienteSugeridoId String?     @map("paciente_sugerido_id") @db.Uuid // possível duplicidade
+  revisorId          Int?        @map("revisor_id")
+  revisaoIniciadaEm  DateTime?   @map("revisao_iniciada_em")
+  validadoPorId      Int?        @map("validado_por_id")
+  validadoEm         DateTime?   @map("validado_em")
+  criadoEm           DateTime    @default(now()) @map("criado_em")
+
+  documento        Documento @relation(fields: [documentoId], references: [id])
+  paciente         Paciente? @relation("FichaPaciente", fields: [pacienteId], references: [id])
+  pacienteSugerido Paciente? @relation("FichaPacienteSugerido", fields: [pacienteSugeridoId], references: [id])
+  revisor          Usuario?  @relation("Revisor", fields: [revisorId], references: [id])
+  validadoPor      Usuario?  @relation("Validador", fields: [validadoPorId], references: [id])
+
+  transfusoes FichaTransfusional[]
+  pesquisas   PesquisaAnticorpos[]
+  kitsId      KitId[]
+  eventos     EventoAuditoria[]
+
+  @@index([status])
+  @@index([pacienteId])
+  @@map("ficha_digitalizada")
+}
+
+/// Trilha de auditoria: quem fez o quê, quando, e o valor antes e depois de cada edição
+model EventoAuditoria {
+  id             Int        @id @default(autoincrement())
+  tipo           TipoEvento
+  ocorridoEm     DateTime   @default(now()) @map("ocorrido_em")
+  usuarioId      Int?       @map("usuario_id") // null = o próprio sistema (fila da IA)
+  loteId         Int?       @map("lote_id")
+  documentoId    Int?       @map("documento_id")
+  fichaId        Int?       @map("ficha_id")
+  pacienteId     String?    @map("paciente_id") @db.Uuid
+  campo          String?    @db.VarChar(100) // ex.: Nome da mãe
+  pagina         Int?
+  valorAnterior  String?    @map("valor_anterior") @db.Text // sugestão da extração
+  valorPosterior String?    @map("valor_posterior") @db.Text // correção humana
+  justificativa  String?    @db.Text
+
+  usuario   Usuario?           @relation(fields: [usuarioId], references: [id])
+  lote      Lote?              @relation(fields: [loteId], references: [id])
+  documento Documento?         @relation(fields: [documentoId], references: [id])
+  ficha     FichaDigitalizada? @relation(fields: [fichaId], references: [id])
+  paciente  Paciente?          @relation(fields: [pacienteId], references: [id])
+
+  @@index([fichaId])
+  @@index([pacienteId])
+  @@index([ocorridoEm])
+  @@map("evento_auditoria")
 }
