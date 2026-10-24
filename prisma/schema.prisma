@@ -122,16 +122,25 @@ model Paciente {
   @@map("paciente")
 }
 
-model Cidade {
-  id         Int    @id @default(autoincrement())
-  nomeCidade String @map("nome_cidade") @db.VarChar(120)
-  uf         String @db.VarChar(2)
 
+model Cidade {
+  id                   Int                  @id @default(autoincrement())
+  nomeCidade           String               @map("nome_cidade") @db.VarChar(120)
+  estado_id            Int
+  code                 Int
+  estados              estados              @relation(fields: [estado_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cidade_estado")
   fichasTransfusionais FichaTransfusional[]
   pacientes            Paciente[]
 
-  @@unique([nomeCidade, uf])
   @@map("cidade")
+}
+
+model estados {
+  id          Int      @id @default(autoincrement())
+  uf_code     Int
+  estado_nome String   @db.VarChar(50)
+  uf          String   @db.Char(2)
+  cidade      Cidade[]
 }
 
 /// Profissionais do hemocentro citados no papel (quem liberou a transfusão, solicitante da pesquisa).
