@@ -3,6 +3,9 @@
 /** Lote DEM-012, ficha FIC-0320, evento EVT-0094 (prefixo + id). */
 export const codigoLote = (id: number) => `DEM-${String(id).padStart(3, '0')}`;
 export const codigoFicha = (id: number) => `FIC-${String(id).padStart(4, '0')}`;
+/** Arquivo n do lote 12: "12.1 - 25-10-2026" ou "12.1 - {nome dado pelo usuário}". */
+export const nomeDigitalizacao = (loteId: number, seq: number, nomeLote: string) =>
+  `${loteId}.${seq} - ${nomeLote}`;
 export const codigoEvento = (id: number) =>
   `EVT-${String(id).padStart(4, '0')}`;
 

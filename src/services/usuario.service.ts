@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import type {
   AlterarUsuarioDto,
   CriarUsuarioDto,
@@ -22,11 +26,13 @@ export class UsuarioService {
   }
 
   /** Email repetido ou colaboradora já ligada a outro usuário viram 409 (PrismaErroFilter). */
-  criar(dto: CriarUsuarioDto) {
+  async criar(dto: CriarUsuarioDto) {
+    await this.exigirColaborador(dto.colaboradorId);
     return this.prisma.usuario.create({ data: dto, ...COM_COLABORADOR });
   }
 
-  alterar(id: number, dto: AlterarUsuarioDto) {
+  async alterar(id: number, dto: AlterarUsuarioDto) {
+    await this.exigirColaborador(dto.colaboradorId);
     return this.prisma.usuario.update({
       where: { id },
       data: dto,
@@ -46,5 +52,17 @@ export class UsuarioService {
       );
     }
     return { id: usuario.id, nome: usuario.nome };
+  }
+
+  /** colaboradorId null ou ausente passa (desliga ou não mexe). */
+  private async exigirColaborador(id: number | null | undefined) {
+    if (!id) return;
+    const existe = await this.prisma.colaborador.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existe) {
+      throw new BadRequestException(`Colaborador ${id} não está cadastrado.`);
+    }
   }
 }

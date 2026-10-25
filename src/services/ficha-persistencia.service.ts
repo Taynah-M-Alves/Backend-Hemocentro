@@ -25,13 +25,47 @@ type PacienteIdentificado = PacienteExtraido & {
   dataNascimento: string;
 };
 
+/** Cidade ou colaborador citado na ficha; `campo` é o caminho usado no PATCH da revisão. */
+type Referencia =
+  | { tipo: 'cidade'; campo: string; nome: string; uf: string | null }
+  | { tipo: 'colaborador'; campo: string; nome: string };
+
 /**
  * Grava nas tabelas clínicas o que foi revisado numa ficha (POST /api/fichas/:id/aprovar).
  * Roda dentro da transação de quem chama: ou grava tudo, ou não grava nada.
  * Cada registro guarda a ficha e a página de origem. Linhas repetidas são ignoradas.
+ * Cidades e colaboradores não são criados aqui: precisam já estar cadastrados (referenciasInvalidas).
  */
 @Injectable()
 export class FichaPersistenciaService {
+  /**
+   * Cidades e colaboradores da ficha que não estão no banco, uma mensagem por campo.
+   * Com `anterior`, só confere os valores que não estavam lá (o PATCH não trava por causa do que a IA leu).
+   */
+  async referenciasInvalidas(
+    db: Tx,
+    ficha: FichaExtraida,
+    anterior?: FichaExtraida,
+  ): Promise<string[]> {
+    const jaEstavam = new Set(anterior ? referencias(anterior).map(chave) : []);
+    const erros: string[] = [];
+    for (const r of referencias(ficha)) {
+      if (jaEstavam.has(chave(r))) continue;
+      if (r.tipo === 'colaborador') {
+        if (!(await this.idColaborador(db, r.nome))) {
+          erros.push(
+            `"${r.campo}": colaborador "${r.nome}" não está cadastrado (cadastre em POST /api/colaboradores ou corrija o nome).`,
+          );
+        }
+      } else if (!r.uf) {
+        erros.push(`"${r.campo}": informe a UF da cidade "${r.nome}".`);
+      } else if (!(await this.idCidade(db, r.nome, r.uf))) {
+        erros.push(`"${r.campo}": cidade "${r.nome} / ${r.uf}" não está cadastrada.`);
+      }
+    }
+    return erros;
+  }
+
   async salvar(
     tx: Tx,
     ficha: FichaExtraida & { paciente: PacienteIdentificado },
@@ -43,7 +77,6 @@ export class FichaPersistenciaService {
       tx,
       ficha.paciente,
       pacienteExistenteId,
-      avisos,
     );
     const origem = { pacienteId, fichaDigitalizadaId: fichaId };
 
@@ -87,19 +120,12 @@ export class FichaPersistenciaService {
     tx: Tx,
     p: PacienteIdentificado,
     pacienteExistenteId: string | null,
-    avisos: string[],
   ): Promise<{ id: string; criado: boolean }> {
     const { municipio, ufMunicipio, ...campos } = p;
     const dados = {
       ...campos,
       dataNascimento: paraData(p.dataNascimento),
-      municipioId: await this.idCidade(
-        tx,
-        municipio,
-        ufMunicipio,
-        'Município do paciente',
-        avisos,
-      ),
+      municipioId: await this.idCidade(tx, municipio, ufMunicipio),
     };
 
     if (!pacienteExistenteId) {
@@ -159,13 +185,7 @@ export class FichaPersistenciaService {
         testesPai: t.testesPai,
         provaCruzada: t.provaCruzada,
         pagina: t.pagina,
-        cidadeDestinoId: await this.idCidade(
-          tx,
-          t.cidadeDestino,
-          t.ufDestino,
-          rotulo,
-          avisos,
-        ),
+        cidadeDestinoId: await this.idCidade(tx, t.cidadeDestino, t.ufDestino),
         responsavelLiberacaoId: await this.idColaborador(tx, t.responsavelLiberacao),
       },
     });
@@ -251,38 +271,47 @@ export class FichaPersistenciaService {
     return true;
   }
 
-  // ── Tabelas auxiliares (busca ou cria) ────────────────────────────────────
+  // ── Tabelas auxiliares (só busca) ─────────────────────────────────────────
 
   private async idCidade(
-    tx: Tx,
+    db: Tx,
     nomeCidade: string | null,
     uf: string | null,
-    rotulo: string,
-    avisos: string[],
   ): Promise<number | null> {
-    if (!nomeCidade) return null;
-    if (!uf) {
-      avisos.push(`${rotulo}: cidade "${nomeCidade}" sem UF; não foi gravada.`);
-      return null;
-    }
-    const estado = await tx.estados.findFirst({ where: { uf: uf.toUpperCase() } });
-    if (!estado) {
-      avisos.push(`${rotulo}: UF "${uf}" não cadastrada; cidade não foi gravada.`);
-      return null;
-    }
-    const cidade =
-      (await tx.cidade.findFirst({
-        where: { nomeCidade: igual(nomeCidade), estado_id: estado.id },
-      })) ??
-      (await tx.cidade.create({ data: { nomeCidade, code: 0, estado_id: estado.id } }));
-    return cidade.id;
+    if (!nomeCidade || !uf) return null;
+    const cidade = await db.cidade.findFirst({
+      where: { nomeCidade: igual(nomeCidade), estados: { uf } },
+      select: { id: true },
+    });
+    return cidade?.id ?? null;
   }
 
-  private async idColaborador(tx: Tx, nome: string | null): Promise<number | null> {
+  private async idColaborador(db: Tx, nome: string | null): Promise<number | null> {
     if (!nome) return null;
-    const colaborador =
-      (await tx.colaborador.findFirst({ where: { nome: igual(nome) } })) ??
-      (await tx.colaborador.create({ data: { nome } }));
-    return colaborador.id;
+    const colaborador = await db.colaborador.findFirst({
+      where: { nome: igual(nome) },
+      select: { id: true },
+    });
+    return colaborador?.id ?? null;
   }
 }
+
+/** Cidades (com a UF) e colaboradores citados na ficha. */
+function referencias(f: FichaExtraida): Referencia[] {
+  const cidade = (campo: string, nome: string | null, uf: string | null): Referencia[] =>
+    nome ? [{ tipo: 'cidade', campo, nome, uf }] : [];
+  const colaborador = (campo: string, nome: string | null): Referencia[] =>
+    nome ? [{ tipo: 'colaborador', campo, nome }] : [];
+  return [
+    ...cidade('paciente.municipio', f.paciente.municipio, f.paciente.ufMunicipio),
+    ...f.transfusoes.flatMap((t, i) => [
+      ...cidade(`transfusoes[${i}].cidadeDestino`, t.cidadeDestino, t.ufDestino),
+      ...colaborador(`transfusoes[${i}].responsavelLiberacao`, t.responsavelLiberacao),
+    ]),
+    ...f.pesquisas.flatMap((p, i) => colaborador(`pesquisas[${i}].responsavel`, p.responsavel)),
+  ];
+}
+
+/** Compara pelo valor, não pelo campo: remover uma linha muda os índices das seguintes. */
+const chave = (r: Referencia) =>
+  `${r.tipo}|${r.nome}|${r.tipo === 'cidade' ? r.uf : ''}`.toLowerCase();
