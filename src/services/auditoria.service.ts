@@ -10,6 +10,7 @@ import {
   paraData,
 } from '../utils/formatos.js';
 import { paginado } from '../utils/paginacao.js';
+import { gerarXlsx } from '../utils/xlsx.js';
 import { PrismaService } from './prisma.service.js';
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
@@ -88,8 +89,8 @@ export class AuditoriaService {
     };
   }
 
-  /** Mesmos filtros, sem paginação, em CSV (";" e UTF-8 com BOM, para abrir no Excel em português). */
-  async exportarCsv(dto: FiltroEventosDto): Promise<string> {
+  /** Mesmos filtros, sem paginação, em planilha .xlsx. */
+  async exportarXlsx(dto: FiltroEventosDto): Promise<Buffer> {
     const eventos = await this.prisma.eventoAuditoria.findMany({
       where: filtro(dto),
       orderBy: { ocorridoEm: 'desc' },
@@ -113,7 +114,7 @@ export class AuditoriaService {
       e.valorPosterior ?? '',
       e.justificativa ?? '',
     ]);
-    return '﻿' + [cabecalho, ...linhas].map((l) => l.map(celulaCsv).join(';')).join('\r\n');
+    return gerarXlsx('Trilha de auditoria', [cabecalho, ...linhas]);
   }
 }
 
@@ -139,11 +140,4 @@ function filtro(dto: FiltroEventosDto): Prisma.EventoAuditoriaWhereInput {
           ? { loteId: Number(lote[1]) }
           : { paciente: { nome: contem(dto.busca) } })),
   };
-}
-
-/** Aspas em volta e, contra fórmulas no Excel, um apóstrofo antes de = + - @. */
-function celulaCsv(valor: string | number): string {
-  const texto = String(valor);
-  const seguro = /^[=+\-@\t\r]/.test(texto) ? `'${texto}` : texto;
-  return `"${seguro.replace(/"/g, '""')}"`;
 }
