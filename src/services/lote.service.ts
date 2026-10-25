@@ -5,7 +5,7 @@ import * as path from 'path';
 import { MAXIMO_PAGINAS_POR_ARQUIVO } from '../config/upload.config.js';
 import { lerCriarLoteDto } from '../dtos/lote.dto.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
-import { codigoLote } from '../utils/formatos.js';
+import { codigoLote, nomeDigitalizacao } from '../utils/formatos.js';
 import { paginado, type Paginacao } from '../utils/paginacao.js';
 import { idValido } from '../utils/validacao.js';
 import { DocumentoImagemService } from './documento-imagem.service.js';
@@ -85,8 +85,9 @@ export class LoteService {
         codigo: codigoLote(lote.id),
         nome: lote.nome,
         enviadoEm: lote.enviadoEm,
-        documentos: lote.documentos.map((d) => ({
+        documentos: lote.documentos.map((d, i) => ({
           id: d.id,
+          nome: nomeDigitalizacao(lote.id, i + 1, lote.nome),
           nomeOriginal: d.nomeOriginal,
           tamanhoBytes: d.tamanhoBytes,
           totalPaginas: d.totalPaginas,
@@ -154,8 +155,9 @@ export class LoteService {
       totalArquivos: lote.documentos.length,
       totalPaginas: somaPaginas(lote.documentos),
       porStatus,
-      documentos: lote.documentos.map((d) => ({
+      documentos: lote.documentos.map((d, i) => ({
         id: d.id,
+        nome: nomeDigitalizacao(lote.id, i + 1, lote.nome),
         nomeOriginal: d.nomeOriginal,
         mimeType: d.mimeType,
         totalPaginas: d.totalPaginas,
@@ -196,6 +198,6 @@ export class LoteService {
 const somaPaginas = (documentos: { totalPaginas: number | null }[]) =>
   documentos.reduce((soma, d) => soma + (d.totalPaginas ?? 0), 0);
 
-/** "Digitalização • 09/10/2026" (data de Cuiabá). */
+/** "25-10-2026" (data de Cuiabá); cada arquivo aparece como "12.1 - 25-10-2026". */
 const nomePadrao = () =>
-  `Digitalização • ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Cuiaba' })}`;
+  new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Cuiaba' }).replaceAll('/', '-');
