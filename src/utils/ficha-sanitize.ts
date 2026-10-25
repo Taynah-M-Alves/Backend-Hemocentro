@@ -1,34 +1,71 @@
-import { ResultadoTeste } from '../generated/prisma/enums.js';
+import {
+  Abo,
+  GrupoAbo,
+  Raca,
+  ResultadoTeste,
+  Rh,
+  Sexo,
+  TipoKitId,
+} from '../generated/prisma/enums.js';
 import type {
   FichaExtraida,
+  KitExtraido,
   PacienteExtraido,
   PesquisaExtraida,
   TransfusaoExtraida,
 } from '../types/ficha.types.js';
 
-// A IA devolve "qualquer coisa" (unknown). Aqui conferimos campo por campo e
-// convertemos para os tipos certos. Assim o resto do código pode confiar nos dados.
+// A IA (e o PATCH da revisão) devolve "qualquer coisa" (unknown). Aqui conferimos campo
+// por campo e convertemos para os tipos do banco: valor ilegível ou inválido vira null.
+// Aceita tanto o texto da ficha ("O+", "Branco") quanto o nome do enum ("O_POSITIVO", "BRANCO").
 
 type Obj = Record<string, unknown>;
 
 const MAIOR_INT_POSTGRES = 2_147_483_647;
 const ANO_MINIMO = 1900;
 
-/**
- * Converte a resposta crua da IA para `FichaExtraida`.
- * Lança erro se faltar o mínimo para identificar o paciente (nome + data de nascimento):
- * assim o AiExtractionService entende que essa IA falhou e tenta a próxima.
- */
+/** Converte a resposta crua para `FichaExtraida`. Só lança erro se nem for um objeto. */
 export function sanitizarFicha(bruto: unknown): FichaExtraida {
-  if (!isObj(bruto) || !isObj(bruto.paciente)) {
-    throw new Error('Resposta sem o objeto "paciente".');
-  }
+  if (!isObj(bruto)) throw new Error('A resposta não é um objeto JSON.');
 
   return {
-    paciente: sanitizarPaciente(bruto.paciente),
+    dataAtendimento: dataIso(bruto.dataAtendimento),
+    motivo: texto(bruto.motivo),
+    paciente: sanitizarPaciente(isObj(bruto.paciente) ? bruto.paciente : {}),
     transfusoes: lista(bruto.transfusoes).map(sanitizarTransfusao),
     pesquisas: lista(bruto.pesquisas).map(sanitizarPesquisa),
+    kits: lista(bruto.kits).map(sanitizarKit),
   };
+}
+
+/**
+ * Lança erro se faltar o mínimo para identificar o paciente (nome + data de nascimento).
+ * Na leitura, faz o AiExtractionService tentar a próxima IA; na aprovação, vira 422.
+ */
+export function exigirIdentificacao(ficha: FichaExtraida): void {
+  const faltando = [
+    !ficha.paciente.nome && 'nome do paciente',
+    !ficha.paciente.dataNascimento && 'data de nascimento',
+  ].filter(Boolean);
+  if (faltando.length) {
+    throw new Error(
+      `Não foi possível ler com segurança: ${faltando.join(' e ')}.`,
+    );
+  }
+}
+
+/** Campos sem os quais uma transfusão não é gravada. */
+export function camposFaltandoNaTransfusao(t: TransfusaoExtraida): string[] {
+  const obrigatorios: [string, unknown][] = [
+    ['data do envio', t.dataEnvio],
+    ['tipo de hemocomponente', t.tipoHemocomponente],
+    ['número da doação', t.numeroDoacao],
+    ['GR.S/RhD', t.grsRhd],
+    ['volume', t.volMl],
+  ];
+  return obrigatorios
+    .filter(([, valor]) => valor === null)
+    .map(([campo]) => campo);
 }
 
 /** Aceita "AAAA-MM-DD" ou "DD/MM/AAAA" (também com "." ou "-") e devolve "AAAA-MM-DD". */
@@ -54,57 +91,93 @@ export function dataIso(v: unknown): string | null {
 // ── Partes da ficha ─────────────────────────────────────────────────────────
 
 function sanitizarPaciente(p: Obj): PacienteExtraido {
-  const nome = nomePessoa(p.nome);
-  const dataNascimento = dataIso(p.dataNascimento);
-
-  if (!nome || !dataNascimento) {
-    const faltando = [
-      !nome && 'nome do paciente',
-      !dataNascimento && 'data de nascimento',
-    ];
-    throw new Error(
-      `Não foi possível ler com segurança: ${faltando.filter(Boolean).join(' e ')}.`,
-    );
-  }
-
   return {
-    nome,
-    dataNascimento,
+    nome: nomePessoa(p.nome),
+    dataNascimento: dataIso(p.dataNascimento),
+    nomeSocial: texto(p.nomeSocial),
     prontuario: inteiro(p.prontuario),
-    racaCor: texto(p.racaCor, 50),
-    aboRh: texto(p.aboRh, 10),
+    sexo: sexo(p.sexo),
+    raca: raca(p.raca ?? p.racaCor),
+    aboRh: abo(p.aboRh),
+    cpf: digitos(p.cpf, 11, 11),
+    cartaoSus: digitos(p.cartaoSus, 15, 15),
     diagnostico: texto(p.diagnostico),
     nomeMae: nomePessoa(p.nomeMae),
+    nomePai: nomePessoa(p.nomePai),
+    alergias: texto(p.alergias),
+    municipio: texto(p.municipio, 120),
+    ufMunicipio: uf(p.ufMunicipio),
   };
 }
 
 function sanitizarTransfusao(t: Obj): TransfusaoExtraida {
-  const numeroDoacao =
-    texto(t.numeroDoacao)?.replace(/\D/g, '').slice(0, 30) || null;
   return {
     dataEnvio: dataIso(t.dataEnvio),
     tipoHemocomponente: texto(t.tipoHemocomponente, 100),
-    numeroDoacao,
-    grsRhd: texto(t.grsRhd, 50),
+    numeroDoacao: digitos(t.numeroDoacao, 1, 30),
+    numeroServico: texto(t.numeroServico, 30),
+    tracejador: texto(t.tracejador, 50),
+    grsRhd: abo(t.grsRhd),
     volMl: inteiro(t.volMl),
     testesPai: resultadoTeste(t.testesPai),
     provaCruzada: resultadoTeste(t.provaCruzada),
     cidadeDestino: texto(t.cidadeDestino, 120),
-    ufDestino: texto(t.ufDestino, 2)?.toUpperCase() ?? null,
+    ufDestino: uf(t.ufDestino),
     responsavelLiberacao: texto(t.responsavelLiberacao),
+    pagina: inteiro(t.pagina),
   };
 }
 
 function sanitizarPesquisa(p: Obj): PesquisaExtraida {
   return {
-    data: dataIso(p.data),
-    gs: texto(p.gs, 10),
-    rh: texto(p.rh, 10),
-    tad: texto(p.tad, 50),
+    dataPesquisa: dataIso(p.dataPesquisa ?? p.data),
+    gs: grupoAbo(p.gs),
+    rh: rh(p.rh),
+    dFraco: texto(p.dFraco, 50),
     pai: texto(p.pai, 50),
+    tad: texto(p.tad, 50),
     autocontrole: texto(p.autocontrole, 50),
+    dcScreening: texto(p.dcScreening, 50),
+    especificidade: texto(p.especificidade),
     interpretacao: texto(p.interpretacao),
+    observacao: texto(p.observacao),
+    amostra: texto(p.amostra, 50),
+    metodologia: texto(p.metodologia, 100),
     responsavel: texto(p.responsavel),
+    fenotipagem: lista(p.fenotipagem).flatMap((f) => {
+      const antigeno = texto(f.antigeno, 10);
+      const resultado = texto(f.resultado, 5);
+      return antigeno && resultado ? [{ antigeno, resultado }] : [];
+    }),
+    pagina: inteiro(p.pagina),
+  };
+}
+
+function sanitizarKit(k: Obj): KitExtraido {
+  return {
+    tipo: tipoKit(k.tipo),
+    dataPesquisa: dataIso(k.dataPesquisa ?? k.data),
+    gs: grupoAbo(k.gs),
+    rh: rh(k.rh),
+    tad: texto(k.tad, 50),
+    pai: texto(k.pai, 50),
+    autocontrole: texto(k.autocontrole, 50),
+    interpretacao: texto(k.interpretacao),
+    tecnica: texto(k.tecnica, 100),
+    observacao: texto(k.observacao),
+    resultados: lista(k.resultados).flatMap((r) => {
+      const celula = inteiro(r.celula);
+      return celula === null
+        ? []
+        : [
+            {
+              celula,
+              lissCoombs: texto(r.lissCoombs, 5),
+              enzima: texto(r.enzima, 5),
+            },
+          ];
+    }),
+    pagina: inteiro(k.pagina),
   };
 }
 
@@ -124,6 +197,25 @@ function texto(v: unknown, max = 255): string | null {
   if (typeof valor !== 'string') return null;
   const limpo = valor.replace(/\s+/g, ' ').trim();
   return limpo ? limpo.slice(0, max) : null;
+}
+
+/** Sem acentos e em maiúsculas, para comparar com os enums. */
+function normalizado(v: unknown): string {
+  return (texto(v) ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase();
+}
+
+/** Só os dígitos, se a quantidade estiver entre min e max (CPF, cartão SUS, nº da doação). */
+function digitos(v: unknown, min: number, max: number): string | null {
+  const so = texto(v)?.replace(/\D/g, '') ?? '';
+  return so.length >= min && so.length <= max ? so : null;
+}
+
+function uf(v: unknown): string | null {
+  const sigla = normalizado(v);
+  return /^[A-Z]{2}$/.test(sigla) ? sigla : null;
 }
 
 /** Inteiro positivo que cabe numa coluna Int do Postgres. */
@@ -152,12 +244,67 @@ function nomePessoa(v: unknown): string | null {
   return valido ? nome : null;
 }
 
-/** "Positivo"/"POS" → POSITIVO, "Negativo"/"NEG" → NEGATIVO, qualquer outra coisa → NR. */
+/** "Positivo"/"POS" → POSITIVO, "Negativo"/"NEG" → NEGATIVO, qualquer outra coisa → não realizado. */
 function resultadoTeste(v: unknown): ResultadoTeste {
-  const valor = texto(v)?.toUpperCase() ?? '';
+  const valor = normalizado(v);
   if (valor.startsWith('POS')) return ResultadoTeste.POSITIVO;
   if (valor.startsWith('NEG')) return ResultadoTeste.NEGATIVO;
-  return ResultadoTeste.NR;
+  return ResultadoTeste.NAO_REALIZADO;
+}
+
+function sexo(v: unknown): Sexo | null {
+  const valor = normalizado(v);
+  if (valor.startsWith('F')) return Sexo.F;
+  if (valor.startsWith('M')) return Sexo.M;
+  return null;
+}
+
+/** Na ficha a raça pode vir como código: 1=Branco, 2=Preto, 3=Pardo, 4=Amarelo, 5=Indígena. */
+const RACAS: [string, Raca][] = [
+  ['BRANC', Raca.BRANCO],
+  ['PRET', Raca.PRETO],
+  ['PARD', Raca.PARDO],
+  ['AMAREL', Raca.AMARELO],
+  ['INDIGEN', Raca.INDIGENA],
+];
+
+function raca(v: unknown): Raca | null {
+  const valor = normalizado(v);
+  const porCodigo = /^[1-5]$/.test(valor) ? RACAS[Number(valor) - 1] : null;
+  return (porCodigo ?? RACAS.find(([p]) => valor.startsWith(p)))?.[1] ?? null;
+}
+
+/** "O+", "O Pos", "O positivo", "O_POSITIVO" → O_POSITIVO (o zero é lido como O). */
+function abo(v: unknown): Abo | null {
+  const m = normalizado(v)
+    .replace(/[\s_]/g, '')
+    .match(/^(AB|A|B|O|0)(\+|-|POS|NEG)/);
+  if (!m) return null;
+  const grupo = m[1] === '0' ? 'O' : m[1];
+  const sinal = m[2] === '+' || m[2] === 'POS' ? 'POSITIVO' : 'NEGATIVO';
+  return Abo[`${grupo}_${sinal}` as keyof typeof Abo];
+}
+
+/** Só o grupo: "O", "AB" (ignora um Rh escrito junto, como "O+"). */
+function grupoAbo(v: unknown): GrupoAbo | null {
+  const m = normalizado(v).match(/^(AB|A|B|O|0)(?![A-Z])/);
+  if (!m) return null;
+  return m[1] === '0' ? GrupoAbo.O : GrupoAbo[m[1] as keyof typeof GrupoAbo];
+}
+
+function rh(v: unknown): Rh | null {
+  const valor = normalizado(v);
+  if (valor.startsWith('POS') || valor === '+') return Rh.POSITIVO;
+  if (valor.startsWith('NEG') || valor === '-') return Rh.NEGATIVO;
+  if (/^(ND|NAO.?DET|INDET)/.test(valor)) return Rh.NAO_DETERMINADO;
+  return null;
+}
+
+function tipoKit(v: unknown): TipoKitId | null {
+  const valor = normalizado(v).replace(/[^A-Z]/g, '');
+  if (valor.includes('DIACELL')) return TipoKitId.DIACELL;
+  if (valor.includes('DIAPANEL')) return TipoKitId.DIAPANEL;
+  return null;
 }
 
 function lerPartesDaData(

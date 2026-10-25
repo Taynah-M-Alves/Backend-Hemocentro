@@ -1,9 +1,13 @@
-import { dataIso, sanitizarFicha } from './ficha-sanitize.js';
+import {
+  dataIso,
+  exigirIdentificacao,
+  sanitizarFicha,
+} from './ficha-sanitize.js';
 
 /** O que uma IA deveria devolver para a ficha de exemplo (Fulana Vidal). */
 const respostaIa = {
   paciente: {
-    nome: 'Fulana Vidal testeIA',
+    nome: 'Fulana Vidal',
     prontuario: 8934,
     dataNascimento: '1993-05-11',
     racaCor: 'Branco',
@@ -49,10 +53,25 @@ describe('sanitizarFicha', () => {
       dataEnvio: '2026-05-05', // dd/mm/aaaa → aaaa-mm-dd
       numeroDoacao: '0152260418058', // só dígitos, zero à esquerda mantido
       volMl: 235, // texto → número
-      provaCruzada: 'NR',
+      provaCruzada: 'NAO_REALIZADO',
+      grsRhd: 'O_POSITIVO', // "O Pos" → enum do banco
       ufDestino: 'MT',
     });
-    expect(ficha.pesquisas).toHaveLength(1);
+    expect(ficha.paciente).toMatchObject({ raca: 'BRANCO', aboRh: 'O_POSITIVO' });
+    expect(ficha.pesquisas[0]).toMatchObject({
+      dataPesquisa: '2026-09-15', // "data" antigo também é aceito
+      gs: 'O',
+      rh: 'POSITIVO',
+    });
+  });
+
+  it('aceita o nome do enum, como o PATCH da revisão envia', () => {
+    const ficha = sanitizarFicha({
+      paciente: { raca: '3', aboRh: 'AB_NEGATIVO', sexo: 'Feminino' },
+      kits: [{ tipo: 'ID-DiaPanel', data: '10/12/2025', resultados: [{ celula: 1, lissCoombs: '0' }] }],
+    });
+    expect(ficha.paciente).toMatchObject({ raca: 'PARDO', aboRh: 'AB_NEGATIVO', sexo: 'F' });
+    expect(ficha.kits[0]).toMatchObject({ tipo: 'DIAPANEL', dataPesquisa: '2025-12-10' });
   });
 
   it('recusa leitura ilegível em vez de gravar dados errados', () => {
@@ -63,13 +82,15 @@ describe('sanitizarFicha', () => {
         nomeMae: 'q OX Ih NES',
       },
     };
-    expect(() => sanitizarFicha(leituraRuim)).toThrow(
+    const ficha = sanitizarFicha(leituraRuim);
+    expect(ficha.paciente).toMatchObject({ nome: null, dataNascimento: null, nomeMae: null });
+    expect(() => exigirIdentificacao(ficha)).toThrow(
       /nome do paciente e data de nascimento/,
     );
   });
 
-  it('recusa resposta sem paciente', () => {
-    expect(() => sanitizarFicha({ transfusoes: [] })).toThrow(/paciente/);
+  it('recusa resposta que não é objeto', () => {
+    expect(() => sanitizarFicha('texto')).toThrow(/objeto/);
   });
 });
 

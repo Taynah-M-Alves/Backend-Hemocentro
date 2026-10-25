@@ -1,4 +1,4 @@
-import type { FichaExtraida, ResumoGravacao } from './ficha.types.js';
+import type { FichaExtraida } from './ficha.types.js';
 
 /** Qual IA leu a ficha. Ordem de tentativa: gemini → groq → openrouter → openai. */
 export type ProvedorIa = 'gemini' | 'groq' | 'openrouter' | 'openai';
@@ -22,19 +22,4 @@ export interface ExtracaoIA {
   dados: FichaExtraida;
   provedor: ProvedorIa;
   tentativas: TentativaExtracao[];
-}
-
-/** Resposta de POST /ocr/extract */
-export interface OcrApiResponse {
-  sucesso: boolean;
-  /** Nome do arquivo original guardado em ./uploads */
-  arquivo: string;
-  totalPaginas: number;
-  provedorUsado: ProvedorIa | null;
-  tentativas: TentativaExtracao[];
-  dados: FichaExtraida | null;
-  gravacao: ResumoGravacao | null;
-  /** Coisas que não impediram a gravação, mas merecem conferência */
-  avisos: string[];
-  erro: string | null;
 }

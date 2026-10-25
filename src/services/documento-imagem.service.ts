@@ -26,6 +26,17 @@ export class DocumentoImagemService {
       : [{ numero: 1, jpeg: await this.redimensionarImagem(buffer) }];
   }
 
+  /** Quantas páginas o arquivo tem (imagem = 1). Lança erro se o PDF não abrir. */
+  async contarPaginas(buffer: Buffer, mimeType: string): Promise<number> {
+    if (mimeType !== 'application/pdf') return 1;
+    const carregamento = getDocument({ data: new Uint8Array(buffer) });
+    try {
+      return (await carregamento.promise).numPages;
+    } finally {
+      await carregamento.destroy();
+    }
+  }
+
   /** Desenha cada página do PDF num "canvas" (tela) e salva como JPEG. */
   private async renderizarPdf(buffer: Buffer): Promise<PaginaImagem[]> {
     const carregamento = getDocument({ data: new Uint8Array(buffer) });

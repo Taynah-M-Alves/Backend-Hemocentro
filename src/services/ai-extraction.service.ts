@@ -11,16 +11,35 @@ import type {
   TentativaExtracao,
 } from '../types/ocr.types.js';
 import { mensagemDeErro } from '../utils/erros.js';
-import { sanitizarFicha } from '../utils/ficha-sanitize.js';
+import {
+  exigirIdentificacao,
+  sanitizarFicha,
+} from '../utils/ficha-sanitize.js';
 
 /** Tempo máximo esperando uma IA antes de desistir e tentar a próxima. */
 const TIMEOUT_MS = 180_000;
-/** O JSON da ficha é pequeno; o limite folgado deixa espaço para o "raciocínio" do modelo. */
-const MAX_TOKENS = 8000;
+/**
+ * Inclui o "raciocínio" do modelo, que gasta boa parte do limite. Com 8000 o Gemini cortava o
+ * JSON no meio depois que o prompt passou a pedir kits e fenotipagem.
+ */
+const MAX_TOKENS = 20000;
 const TEMPERATURA = 0.1;
 const MAX_RETRIES = 2;
 const ESPERA_INICIAL_MS = 1200;
 const STATUS_TRANSITORIOS = [429, 500, 502, 503, 504];
+/** Erros de rede e tempo esgotado também passam se tentar de novo mais tarde. */
+const MENSAGENS_TRANSITORIAS =
+  /high demand|timed? ?out|timeout|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up/i;
+
+/** Erro de "todas as IAs falharam". `transitoria` = alguma falhou por algo passageiro. */
+export class FalhaLeituraError extends Error {
+  constructor(
+    message: string,
+    readonly transitoria: boolean,
+  ) {
+    super(message);
+  }
+}
 
 /** Modelo usado quando o *_MODEL correspondente não está no .env. Todos precisam ler imagens. */
 const MODELO_PADRAO: Record<ProvedorIa, string> = {
@@ -118,11 +137,12 @@ export class AiExtractionService {
 
   /**
    * Envia as imagens das páginas para as IAs, na ordem de `provedores`.
-   * A primeira que devolver uma ficha válida vence. Se todas falharem, lança um erro
-   * com o motivo de cada uma.
+   * A primeira que devolver uma ficha válida vence. Se todas falharem, lança
+   * FalhaLeituraError com o motivo de cada uma.
    */
   async extrairFicha(paginas: PaginaImagem[]): Promise<ExtracaoIA> {
     const tentativas: TentativaExtracao[] = [];
+    let algumaTransitoria = false;
 
     for (const { id, nome, extrair } of this.provedores) {
       if (!extrair) {
@@ -151,6 +171,7 @@ export class AiExtractionService {
         return { dados, provedor: id, tentativas };
       } catch (err) {
         const erro = mensagemDeErro(err);
+        if (this.isErroTransitorio(err)) algumaTransitoria = true;
         tentativas.push({
           provedor: id,
           sucesso: false,
@@ -164,7 +185,10 @@ export class AiExtractionService {
     const detalhes = tentativas
       .map((t) => `${t.provedor}: ${t.erro}`)
       .join(' | ');
-    throw new Error(`Todas as IAs falharam. Detalhes: [${detalhes}]`);
+    throw new FalhaLeituraError(
+      `Todas as IAs falharam. Detalhes: [${detalhes}]`,
+      algumaTransitoria,
+    );
   }
 
   /** Repete a chamada em erros temporários (sobrecarga, limite de uso), esperando cada vez mais. */
@@ -187,10 +211,10 @@ export class AiExtractionService {
   private isErroTransitorio(err: unknown): boolean {
     const status = (err as { status?: number }).status;
     if (status !== undefined) return STATUS_TRANSITORIOS.includes(status);
-    const msg = mensagemDeErro(err).toLowerCase();
+    const msg = mensagemDeErro(err);
     return (
       STATUS_TRANSITORIOS.some((s) => msg.includes(String(s))) ||
-      msg.includes('high demand')
+      MENSAGENS_TRANSITORIAS.test(msg)
     );
   }
 
@@ -281,13 +305,15 @@ export class AiExtractionService {
 
   // ── Resposta ──────────────────────────────────────────────────────────────
 
-  /** Remove um eventual bloco ```json``` e confere os campos com sanitizarFicha(). */
+  /** Remove um eventual bloco ```json```, confere os campos e exige nome + nascimento. */
   private parseJson(raw: string): FichaExtraida {
     const limpo = raw
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```$/, '')
       .trim();
     if (!limpo) throw new Error('A IA respondeu vazio.');
-    return sanitizarFicha(JSON.parse(limpo));
+    const ficha = sanitizarFicha(JSON.parse(limpo));
+    exigirIdentificacao(ficha);
+    return ficha;
   }
 }

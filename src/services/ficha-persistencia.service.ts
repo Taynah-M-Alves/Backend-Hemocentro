@@ -1,13 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import type {
   FichaExtraida,
+  KitExtraido,
   PacienteExtraido,
   PesquisaExtraida,
   ResumoGravacao,
   TransfusaoExtraida,
 } from '../types/ficha.types.js';
-import { PrismaService } from './prisma.service.js';
+import { camposFaltandoNaTransfusao } from '../utils/ficha-sanitize.js';
+import { igual, paraData } from '../utils/formatos.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -17,132 +19,128 @@ export interface ResultadoGravacao {
   avisos: string[];
 }
 
-/** "2026-05-05" → Date (as colunas são @db.Date, só dia/mês/ano) */
-const paraData = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
-
-/** Busca sem diferenciar maiúsculas/minúsculas: "marcia" encontra "Marcia". */
-const igual = (valor: string) => ({
-  equals: valor,
-  mode: 'insensitive' as const,
-});
+/** Paciente com nome e nascimento já conferidos (exigirIdentificacao). */
+type PacienteIdentificado = PacienteExtraido & {
+  nome: string;
+  dataNascimento: string;
+};
 
 /**
- * Grava no banco o que foi extraído da ficha.
- * Tudo roda dentro de uma TRANSAÇÃO: ou grava tudo, ou não grava nada.
- * Enviar o mesmo documento duas vezes não duplica dados.
+ * Grava nas tabelas clínicas o que foi revisado numa ficha (POST /api/fichas/:id/aprovar).
+ * Roda dentro da transação de quem chama: ou grava tudo, ou não grava nada.
+ * Cada registro guarda a ficha e a página de origem. Linhas repetidas são ignoradas.
  */
 @Injectable()
 export class FichaPersistenciaService {
-  constructor(private readonly prisma: PrismaService) {}
+  async salvar(
+    tx: Tx,
+    ficha: FichaExtraida & { paciente: PacienteIdentificado },
+    fichaId: number,
+    pacienteExistenteId: string | null,
+  ): Promise<ResultadoGravacao> {
+    const avisos: string[] = [];
+    const { id: pacienteId, criado } = await this.salvarPaciente(
+      tx,
+      ficha.paciente,
+      pacienteExistenteId,
+      avisos,
+    );
+    const origem = { pacienteId, fichaDigitalizadaId: fichaId };
 
-  salvar(ficha: FichaExtraida): Promise<ResultadoGravacao> {
-    return this.prisma.$transaction(async (tx) => {
-      const avisos: string[] = [];
-      const { id: pacienteId, criado } = await this.salvarPaciente(
-        tx,
-        ficha.paciente,
-      );
+    const resumo: ResumoGravacao = {
+      pacienteId,
+      pacienteCriado: criado,
+      transfusoesCriadas: 0,
+      transfusoesIgnoradas: 0,
+      pesquisasCriadas: 0,
+      pesquisasIgnoradas: 0,
+      kitsCriados: 0,
+      kitsIgnorados: 0,
+    };
 
-      const resumo: ResumoGravacao = {
-        pacienteId,
-        pacienteCriado: criado,
-        transfusoesCriadas: 0,
-        transfusoesIgnoradas: 0,
-        pesquisasCriadas: 0,
-        pesquisasIgnoradas: 0,
-      };
+    for (const [i, t] of ficha.transfusoes.entries()) {
+      if (await this.salvarTransfusao(tx, origem, t, `Transfusão ${i + 1}`, avisos))
+        resumo.transfusoesCriadas++;
+      else resumo.transfusoesIgnoradas++;
+    }
+    for (const [i, p] of ficha.pesquisas.entries()) {
+      if (await this.salvarPesquisa(tx, origem, p, `Pesquisa ${i + 1}`, avisos))
+        resumo.pesquisasCriadas++;
+      else resumo.pesquisasIgnoradas++;
+    }
+    for (const [i, k] of ficha.kits.entries()) {
+      if (await this.salvarKit(tx, origem, k, `Kit ${i + 1}`, avisos))
+        resumo.kitsCriados++;
+      else resumo.kitsIgnorados++;
+    }
 
-      for (const [i, transfusao] of ficha.transfusoes.entries()) {
-        const criada = await this.salvarTransfusao(
-          tx,
-          pacienteId,
-          transfusao,
-          `Transfusão ${i + 1}`,
-          avisos,
-        );
-        if (criada) resumo.transfusoesCriadas++;
-        else resumo.transfusoesIgnoradas++;
-      }
-
-      for (const [i, pesquisa] of ficha.pesquisas.entries()) {
-        const criada = await this.salvarPesquisa(
-          tx,
-          pacienteId,
-          pesquisa,
-          `Pesquisa ${i + 1}`,
-          avisos,
-        );
-        if (criada) resumo.pesquisasCriadas++;
-        else resumo.pesquisasIgnoradas++;
-      }
-
-      return { resumo, avisos };
-    });
+    return { resumo, avisos };
   }
 
   // ── Paciente ──────────────────────────────────────────────────────────────
 
   /**
-   * Procura o paciente pelo prontuário; sem prontuário, por nome + data de nascimento.
-   * Se já existe, só preenche campos que estavam vazios (nunca apaga o que já foi gravado).
+   * Sem pacienteExistenteId, cria um paciente novo. Com ele, liga a ficha a esse paciente
+   * e só preenche campos que estavam vazios (nunca apaga o que já foi gravado).
    */
   private async salvarPaciente(
     tx: Tx,
-    p: PacienteExtraido,
+    p: PacienteIdentificado,
+    pacienteExistenteId: string | null,
+    avisos: string[],
   ): Promise<{ id: string; criado: boolean }> {
-    const dataNascimento = paraData(p.dataNascimento);
-    const existente =
-      (p.prontuario !== null &&
-        (await tx.paciente.findUnique({
-          where: { prontuario: p.prontuario },
-        }))) ||
-      (await tx.paciente.findFirst({
-        where: { nome: igual(p.nome), dataNascimento },
-      }));
+    const { municipio, ufMunicipio, ...campos } = p;
+    const dados = {
+      ...campos,
+      dataNascimento: paraData(p.dataNascimento),
+      municipioId: await this.idCidade(
+        tx,
+        municipio,
+        ufMunicipio,
+        'Município do paciente',
+        avisos,
+      ),
+    };
 
-    if (!existente) {
-      const novo = await tx.paciente.create({ data: { ...p, dataNascimento } });
+    if (!pacienteExistenteId) {
+      const novo = await tx.paciente.create({ data: dados });
       return { id: novo.id, criado: true };
     }
 
-    await tx.paciente.update({
-      where: { id: existente.id },
-      data: {
-        prontuario: existente.prontuario ?? p.prontuario,
-        racaCor: existente.racaCor ?? p.racaCor,
-        aboRh: existente.aboRh ?? p.aboRh,
-        diagnostico: existente.diagnostico ?? p.diagnostico,
-        nomeMae: existente.nomeMae ?? p.nomeMae,
-      },
+    const existente = await tx.paciente.findUnique({
+      where: { id: pacienteExistenteId },
     });
+    if (!existente) {
+      throw new NotFoundException(`Paciente ${pacienteExistenteId} não encontrado.`);
+    }
+    const vazios = Object.fromEntries(
+      Object.entries(dados).filter(
+        ([campo, valor]) =>
+          valor !== null && existente[campo as keyof typeof existente] === null,
+      ),
+    );
+    await tx.paciente.update({ where: { id: existente.id }, data: vazios });
     return { id: existente.id, criado: false };
   }
 
-  // ── Transfusão ────────────────────────────────────────────────────────────
+  // ── Registros clínicos ────────────────────────────────────────────────────
 
-  /** Devolve true se criou a linha; false se ignorou (incompleta ou já existente). */
   private async salvarTransfusao(
     tx: Tx,
-    pacienteId: string,
+    origem: { pacienteId: string; fichaDigitalizadaId: number },
     t: TransfusaoExtraida,
     rotulo: string,
     avisos: string[],
   ): Promise<boolean> {
     const { dataEnvio, tipoHemocomponente, numeroDoacao, grsRhd, volMl } = t;
-    if (
-      !dataEnvio ||
-      !tipoHemocomponente ||
-      !numeroDoacao ||
-      !grsRhd ||
-      volMl === null
-    ) {
+    if (!dataEnvio || !tipoHemocomponente || !numeroDoacao || !grsRhd || volMl === null) {
       avisos.push(
         `${rotulo} não foi gravada: faltou ${camposFaltandoNaTransfusao(t).join(', ')}.`,
       );
       return false;
     }
 
-    // O número da doação é único: se já existe, o documento já foi enviado antes
+    // O número da doação é único: se já existe, a linha já foi gravada antes
     if (await tx.fichaTransfusional.findUnique({ where: { numeroDoacao } })) {
       avisos.push(`${rotulo} (doação ${numeroDoacao}) já estava no banco.`);
       return false;
@@ -150,44 +148,47 @@ export class FichaPersistenciaService {
 
     await tx.fichaTransfusional.create({
       data: {
-        pacienteId,
+        ...origem,
         dataEnvio: paraData(dataEnvio),
         tipoHemocomponente,
         numeroDoacao,
+        numeroServico: t.numeroServico,
+        tracejador: t.tracejador,
         grsRhd,
         volMl,
         testesPai: t.testesPai,
         provaCruzada: t.provaCruzada,
-        cidadeDestinoId: await this.idCidade(tx, t, rotulo, avisos),
-        responsavelLiberacaoId: await this.idColaborador(
+        pagina: t.pagina,
+        cidadeDestinoId: await this.idCidade(
           tx,
-          t.responsavelLiberacao,
+          t.cidadeDestino,
+          t.ufDestino,
+          rotulo,
+          avisos,
         ),
+        responsavelLiberacaoId: await this.idColaborador(tx, t.responsavelLiberacao),
       },
     });
     return true;
   }
 
-  // ── Pesquisa de anticorpos ────────────────────────────────────────────────
-
-  /** Devolve true se criou a linha; false se ignorou (incompleta ou já existente). */
   private async salvarPesquisa(
     tx: Tx,
-    pacienteId: string,
+    origem: { pacienteId: string; fichaDigitalizadaId: number },
     p: PesquisaExtraida,
     rotulo: string,
     avisos: string[],
   ): Promise<boolean> {
-    if (!p.data || !p.gs || !p.rh) {
-      avisos.push(
-        `${rotulo} não foi gravada: faltou data, grupo sanguíneo (GS) ou Rh.`,
-      );
+    if (!p.dataPesquisa) {
+      avisos.push(`${rotulo} não foi gravada: faltou a data.`);
       return false;
     }
 
-    const dados = {
-      pacienteId,
-      data: paraData(p.data),
+    const { dataPesquisa, responsavel, fenotipagem, ...resultados } = p;
+    // Mesmo paciente + mesma data + mesmos resultados = documento repetido
+    const chave = {
+      pacienteId: origem.pacienteId,
+      dataPesquisa: paraData(dataPesquisa),
       gs: p.gs,
       rh: p.rh,
       tad: p.tad,
@@ -195,17 +196,56 @@ export class FichaPersistenciaService {
       autocontrole: p.autocontrole,
       interpretacao: p.interpretacao,
     };
-
-    // Mesmo paciente + mesma data + mesmos resultados = documento repetido
-    if (await tx.pesquisaAnticorpos.findFirst({ where: dados })) {
-      avisos.push(`${rotulo} (${p.data}) já estava no banco.`);
+    if (await tx.pesquisaAnticorpos.findFirst({ where: chave })) {
+      avisos.push(`${rotulo} (${dataPesquisa}) já estava no banco.`);
       return false;
     }
 
     await tx.pesquisaAnticorpos.create({
       data: {
-        ...dados,
-        responsavelPesquisaId: await this.idColaborador(tx, p.responsavel),
+        ...resultados,
+        ...origem,
+        dataPesquisa: chave.dataPesquisa,
+        responsavelPesquisaId: await this.idColaborador(tx, responsavel),
+        fenotipagem: { create: fenotipagem },
+      },
+    });
+    return true;
+  }
+
+  private async salvarKit(
+    tx: Tx,
+    origem: { pacienteId: string; fichaDigitalizadaId: number },
+    k: KitExtraido,
+    rotulo: string,
+    avisos: string[],
+  ): Promise<boolean> {
+    const { tipo, dataPesquisa, resultados, ...campos } = k;
+    if (!tipo || !dataPesquisa) {
+      avisos.push(`${rotulo} não foi gravado: faltou o tipo (DiaCell/DiaPanel) ou a data.`);
+      return false;
+    }
+
+    const chave = {
+      pacienteId: origem.pacienteId,
+      tipo,
+      dataPesquisa: paraData(dataPesquisa),
+      interpretacao: k.interpretacao,
+    };
+    if (await tx.kitId.findFirst({ where: chave })) {
+      avisos.push(`${rotulo} (${dataPesquisa}) já estava no banco.`);
+      return false;
+    }
+
+    await tx.kitId.create({
+      data: {
+        ...campos,
+        ...chave,
+        fichaDigitalizadaId: origem.fichaDigitalizadaId,
+        // Uma célula repetida na leitura violaria @@unique([kitId, celula]); fica a última
+        resultados: {
+          create: [...new Map(resultados.map((r) => [r.celula, r])).values()],
+        },
       },
     });
     return true;
@@ -215,49 +255,34 @@ export class FichaPersistenciaService {
 
   private async idCidade(
     tx: Tx,
-    t: TransfusaoExtraida,
+    nomeCidade: string | null,
+    uf: string | null,
     rotulo: string,
     avisos: string[],
   ): Promise<number | null> {
-    if (!t.cidadeDestino) return null;
-    if (!t.ufDestino) {
-      avisos.push(
-        `${rotulo}: cidade "${t.cidadeDestino}" sem UF; destino não gravado.`,
-      );
+    if (!nomeCidade) return null;
+    if (!uf) {
+      avisos.push(`${rotulo}: cidade "${nomeCidade}" sem UF; não foi gravada.`);
       return null;
     }
-
+    const estado = await tx.estados.findFirst({ where: { uf: uf.toUpperCase() } });
+    if (!estado) {
+      avisos.push(`${rotulo}: UF "${uf}" não cadastrada; cidade não foi gravada.`);
+      return null;
+    }
     const cidade =
       (await tx.cidade.findFirst({
-        where: { nomeCidade: igual(t.cidadeDestino), uf: t.ufDestino },
+        where: { nomeCidade: igual(nomeCidade), estado_id: estado.id },
       })) ??
-      (await tx.cidade.create({
-        data: { nomeCidade: t.cidadeDestino, uf: t.ufDestino },
-      }));
+      (await tx.cidade.create({ data: { nomeCidade, code: 0, estado_id: estado.id } }));
     return cidade.id;
   }
 
-  private async idColaborador(
-    tx: Tx,
-    nome: string | null,
-  ): Promise<number | null> {
+  private async idColaborador(tx: Tx, nome: string | null): Promise<number | null> {
     if (!nome) return null;
     const colaborador =
       (await tx.colaborador.findFirst({ where: { nome: igual(nome) } })) ??
       (await tx.colaborador.create({ data: { nome } }));
     return colaborador.id;
   }
-}
-
-function camposFaltandoNaTransfusao(t: TransfusaoExtraida): string[] {
-  const obrigatorios: [string, unknown][] = [
-    ['data do envio', t.dataEnvio],
-    ['tipo de hemocomponente', t.tipoHemocomponente],
-    ['número da doação', t.numeroDoacao],
-    ['GR.S/RhD', t.grsRhd],
-    ['volume', t.volMl],
-  ];
-  return obrigatorios
-    .filter(([, valor]) => valor === null)
-    .map(([campo]) => campo);
 }

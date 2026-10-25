@@ -1,0 +1,985 @@
+{
+  "info": {
+    "name": "Hemocentro API",
+    "description": "As 27 rotas do Planejamento da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Apoio (usuários, colaboradoras, cidades)",
+      "item": [
+        {
+          "name": "Criar usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "description": "Cria quem usa o sistema. 201; 409 se o email já existir. Não exige X-Usuario-Id (é por aqui que o primeiro usuário é criado).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"colaboradorId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('usuarioId', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar usuários",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios?ativo=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios"
+              ],
+              "query": [
+                {
+                  "key": "ativo",
+                  "value": "true",
+                  "description": "true (padrão) ou false",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Filtros \"Responsável\" (Fila) e \"Usuário\" (Auditoria)."
+          }
+        },
+        {
+          "name": "Alterar usuário",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/{{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{usuarioId}}"
+              ]
+            },
+            "description": "Altera nome, ativo e/ou colaboradorId (null desliga). 409 se a colaboradora já estiver ligada a outro usuário.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"ativo\": true,\n  \"colaboradorId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar colaboradoras",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/colaboradores?busca=mar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "colaboradores"
+              ],
+              "query": [
+                {
+                  "key": "busca",
+                  "value": "mar",
+                  "description": "Parte do nome",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Profissionais citadas no papel. Mínimo 2 letras."
+          }
+        },
+        {
+          "name": "Criar colaboradora",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/colaboradores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "colaboradores"
+              ]
+            },
+            "description": "201 com a colaboradora criada. O nome é gravado normalizado (\"maria DA silva\" → \"Maria da Silva\"); 409 se já existir o mesmo nome.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Marcia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar cidades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cidades?busca=cuia&uf=MT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cidades"
+              ],
+              "query": [
+                {
+                  "key": "busca",
+                  "value": "cuia",
+                  "description": "Parte do nome",
+                  "disabled": false
+                },
+                {
+                  "key": "uf",
+                  "value": "MT",
+                  "description": "Sigla (opcional)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Destino da transfusão e município do paciente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Upload (lotes e documentos)",
+      "item": [
+        {
+          "name": "Enviar lote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/lotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lotes"
+              ]
+            },
+            "description": "Envia 1 a 30 arquivos (PDF, JPEG ou PNG, até 50 MB e 20 páginas cada). Cada arquivo = uma ficha de um paciente. Responde 202 sem esperar a IA; a leitura segue em segundo plano. No Postman, selecione o arquivo no campo \"arquivos\" (repita a linha para enviar vários).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "arquivos",
+                  "type": "file",
+                  "src": [],
+                  "description": "Um ou mais arquivos"
+                },
+                {
+                  "key": "nome",
+                  "value": "Digitalização • 09/10/2026",
+                  "type": "text",
+                  "description": "Opcional"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('loteId', j.id);",
+                  "if (j.documentos && j.documentos.length) {",
+                  "  pm.collectionVariables.set('documentoId', j.documentos[0].id);",
+                  "  pm.collectionVariables.set('fichaId', j.documentos[0].fichaId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar lotes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lotes?pagina=1&limite=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lotes"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1",
+                  "description": "Página (começa em 1)",
+                  "disabled": false
+                },
+                {
+                  "key": "limite",
+                  "value": "20",
+                  "description": "Itens por página (máx. 100)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Lotes enviados, mais recentes primeiro."
+          }
+        },
+        {
+          "name": "Progresso do lote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lotes/{{loteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lotes",
+                "{{loteId}}"
+              ]
+            },
+            "description": "Contagem por status e situação de cada arquivo. Repita enquanto houver ENVIADA ou LENDO."
+          }
+        },
+        {
+          "name": "Abrir arquivo original",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documentos/{{documentoId}}/arquivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documentos",
+                "{{documentoId}}",
+                "arquivo"
+              ]
+            },
+            "description": "Devolve o PDF ou a imagem e grava CONSULTA na auditoria. X-Usuario-Id opcional."
+          }
+        },
+        {
+          "name": "Reprocessar documento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documentos/{{documentoId}}/reprocessar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documentos",
+                "{{documentoId}}",
+                "reprocessar"
+              ]
+            },
+            "description": "Só quando a ficha está em FALHA_LEITURA (senão 409). 202 com { fichaId, status: \"ENVIADA\" }."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Revisão (fichas)",
+      "item": [
+        {
+          "name": "Fila de revisão",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/fichas?ordenar=atencao&pagina=1&limite=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "AGUARDANDO_REVISAO,EM_REVISAO,COM_PENDENCIA",
+                  "description": "Um ou mais, separados por vírgula",
+                  "disabled": true
+                },
+                {
+                  "key": "loteId",
+                  "value": "{{loteId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "revisorId",
+                  "value": "{{usuarioId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "busca",
+                  "value": "Ana",
+                  "description": "Nome, nascimento (AAAA-MM-DD ou DD/MM/AAAA) ou nome da mãe",
+                  "disabled": true
+                },
+                {
+                  "key": "ordenar",
+                  "value": "atencao",
+                  "description": "atencao (com alerta primeiro) ou recentes",
+                  "disabled": false
+                },
+                {
+                  "key": "pagina",
+                  "value": "1",
+                  "description": "Página (começa em 1)",
+                  "disabled": false
+                },
+                {
+                  "key": "limite",
+                  "value": "20",
+                  "description": "Itens por página (máx. 100)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Fila com filtros e contadores. Sem \"status\", traz todos menos VALIDADA."
+          }
+        },
+        {
+          "name": "Detalhe da ficha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}"
+              ]
+            },
+            "description": "A ficha, o arquivo de origem e os dados lidos pela IA (dados), com alertas."
+          }
+        },
+        {
+          "name": "Pacientes semelhantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/semelhantes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "semelhantes"
+              ]
+            },
+            "description": "Pacientes já cadastrados com o mesmo nome e nascimento, ou o mesmo nome da mãe."
+          }
+        },
+        {
+          "name": "Iniciar revisão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/iniciar-revisao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "iniciar-revisao"
+              ]
+            },
+            "description": "AGUARDANDO_REVISAO ou COM_PENDENCIA → EM_REVISAO. Sem body. 409 fora de ordem."
+          }
+        },
+        {
+          "name": "Assumir revisão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/assumir-revisao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "assumir-revisao"
+              ]
+            },
+            "description": "Passa a ficha EM_REVISAO de outra pessoa para quem chamou. 409 se a ficha estiver livre ou já for sua.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"justificativa\": \"Camila de férias\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Salvar correções",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/dados",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "dados"
+              ]
+            },
+            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Sinalizar pendência",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/pendencia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "pendencia"
+              ]
+            },
+            "description": "EM_REVISAO → COM_PENDENCIA, com o motivo na auditoria.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Data de nascimento ilegível: dia 14 ou 19\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aprovar ficha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/aprovar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "aprovar"
+              ]
+            },
+            "description": "Grava paciente, transfusões, pesquisas e kits numa transação. Body {} cria paciente novo; { \"pacienteId\": \"...\" } liga a um paciente existente. 422 sem nome ou nascimento; 409 se o prontuário já for de outro paciente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.gravacao && j.gravacao.pacienteId) pm.collectionVariables.set('pacienteId', j.gravacao.pacienteId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Consulta (pacientes)",
+      "item": [
+        {
+          "name": "Buscar pacientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pacientes?nome=Ana&pagina=1&limite=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pacientes"
+              ],
+              "query": [
+                {
+                  "key": "nome",
+                  "value": "Ana",
+                  "description": "Parte do nome",
+                  "disabled": false
+                },
+                {
+                  "key": "dataNascimento",
+                  "value": "1988-03-14",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "nomeMae",
+                  "value": "Maria",
+                  "description": "Parte do nome",
+                  "disabled": true
+                },
+                {
+                  "key": "prontuario",
+                  "value": "8934",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "pagina",
+                  "value": "1",
+                  "description": "Página (começa em 1)",
+                  "disabled": false
+                },
+                {
+                  "key": "limite",
+                  "value": "20",
+                  "description": "Itens por página (máx. 100)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Pelo menos um filtro é obrigatório (senão 400)."
+          }
+        },
+        {
+          "name": "Cabeçalho do paciente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pacientes/{{pacienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pacientes",
+                "{{pacienteId}}"
+              ]
+            },
+            "description": "Cadastro, totais e fichas semelhantes em revisão. Grava CONSULTA (X-Usuario-Id opcional)."
+          }
+        },
+        {
+          "name": "Histórico do paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pacientes/{{pacienteId}}/historico",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pacientes",
+                "{{pacienteId}}",
+                "historico"
+              ]
+            },
+            "description": "Fichas validadas, documentos de origem e linha do tempo."
+          }
+        },
+        {
+          "name": "Ficha completa",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pacientes/{{pacienteId}}/ficha-completa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pacientes",
+                "{{pacienteId}}",
+                "ficha-completa"
+              ]
+            },
+            "description": "Tudo do paciente, cada registro com a ficha e a página de origem. Grava CONSULTA (X-Usuario-Id opcional)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Auditoria e Dashboard",
+      "item": [
+        {
+          "name": "Listar eventos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria/eventos?pagina=1&limite=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria",
+                "eventos"
+              ],
+              "query": [
+                {
+                  "key": "busca",
+                  "value": "FIC-0001",
+                  "description": "FIC-0001, DEM-001 ou parte do nome do paciente",
+                  "disabled": true
+                },
+                {
+                  "key": "de",
+                  "value": "2026-10-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "ate",
+                  "value": "2026-10-31",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "tipo",
+                  "value": "CAMPO_EDITADO",
+                  "description": "LOTE_ENVIADO, LEITURA_CONCLUIDA, LEITURA_FALHOU, REPROCESSAMENTO, REVISAO_INICIADA, REVISAO_ASSUMIDA, CAMPO_EDITADO, PENDENCIA_SINALIZADA, FICHA_VALIDADA, VINCULO_CONFIRMADO, CONSULTA",
+                  "disabled": true
+                },
+                {
+                  "key": "usuarioId",
+                  "value": "{{usuarioId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "fichaId",
+                  "value": "{{fichaId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "pacienteId",
+                  "value": "{{pacienteId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "pagina",
+                  "value": "1",
+                  "description": "Página (começa em 1)",
+                  "disabled": false
+                },
+                {
+                  "key": "limite",
+                  "value": "20",
+                  "description": "Itens por página (máx. 100)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Mais recentes primeiro, com contadores."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.itens && j.itens.length) pm.collectionVariables.set('eventoId', j.itens[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhe do evento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria/eventos/{{eventoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria",
+                "eventos",
+                "{{eventoId}}"
+              ]
+            },
+            "description": "Evento inteiro com valor anterior, valor posterior, justificativa e documento de origem."
+          }
+        },
+        {
+          "name": "Exportar eventos (CSV)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria/eventos/exportar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria",
+                "eventos",
+                "exportar"
+              ],
+              "query": [
+                {
+                  "key": "de",
+                  "value": "2026-10-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "ate",
+                  "value": "2026-10-31",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Mesmos filtros da listagem, sem paginação. CSV com \";\" para abrir no Excel."
+          }
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "de",
+                  "value": "2026-09-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "ate",
+                  "value": "2026-10-31",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Cartões, evolução semanal e qualidade do cadastro. Padrão: últimas 6 semanas."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "usuarioId",
+      "value": "1"
+    },
+    {
+      "key": "loteId",
+      "value": "1"
+    },
+    {
+      "key": "documentoId",
+      "value": "1"
+    },
+    {
+      "key": "fichaId",
+      "value": "1"
+    },
+    {
+      "key": "pacienteId",
+      "value": ""
+    },
+    {
+      "key": "eventoId",
+      "value": "1"
+    }
+  ]
+}

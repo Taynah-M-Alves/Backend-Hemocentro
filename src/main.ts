@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { configurarApp } from './configurar-app.js';
 
 /** Carrega o .env (DATABASE_URL, chaves das IAs...). Sem .env, usa as variáveis do sistema. */
 function carregarEnv(): void {
@@ -18,8 +19,10 @@ async function bootstrap(): Promise<void> {
   const porta = process.env.PORT ?? 3000;
 
   const app = await NestFactory.create(AppModule);
+  configurarApp(app);
+  app.enableShutdownHooks(); // para a fila da IA ao desligar
   await app.listen(porta);
-  Logger.log(`Servidor rodando em http://localhost:${porta}`);
+  Logger.log(`Servidor rodando em http://localhost:${porta}/api`);
 }
 
 await bootstrap();
