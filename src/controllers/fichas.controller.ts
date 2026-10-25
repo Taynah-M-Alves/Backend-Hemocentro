@@ -17,6 +17,7 @@ import {
   lerAssumirRevisaoDto,
   lerFiltroFichasDto,
   lerPendenciaDto,
+  STATUS_REVISAO,
 } from '../dtos/ficha.dto.js';
 import { FichaService } from '../services/ficha.service.js';
 
@@ -25,10 +26,16 @@ import { FichaService } from '../services/ficha.service.js';
 export class FichasController {
   constructor(private readonly fichas: FichaService) {}
 
-  /** GET /api/fichas?status=&loteId=&revisorId=&busca=&ordenar=atencao|recentes&pagina=&limite= */
+  /** GET /api/fichas?status=&loteId=&revisorId=&busca=&ordenar=atencao|recentes|pendencias&pagina=&limite= */
   @Get()
   listar(@Query() query: Record<string, string | undefined>) {
     return this.fichas.listar(lerFiltroFichasDto(query));
+  }
+
+  /** GET /api/fichas/revisao — mesmos filtros, só AGUARDANDO_REVISAO, EM_REVISAO, COM_PENDENCIA e VALIDADA */
+  @Get('revisao')
+  revisao(@Query() query: Record<string, string | undefined>) {
+    return this.fichas.listar(lerFiltroFichasDto(query, STATUS_REVISAO));
   }
 
   /** GET /api/fichas/:id — a ficha com os dados lidos pela IA, para editar */

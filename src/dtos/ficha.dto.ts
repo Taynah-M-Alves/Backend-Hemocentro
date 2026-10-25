@@ -12,17 +12,27 @@ import {
 } from '../utils/validacao.js';
 
 const STATUS = Object.values(StatusFicha);
-const ORDENS = ['recentes', 'atencao'] as const;
+const ORDENS = ['recentes', 'atencao', 'pendencias'] as const;
+
+/** GET /api/fichas/revisao — também é a ordem de ordenar=pendencias */
+export const STATUS_REVISAO: StatusFicha[] = [
+  StatusFicha.COM_PENDENCIA,
+  StatusFicha.EM_REVISAO,
+  StatusFicha.AGUARDANDO_REVISAO,
+  StatusFicha.VALIDADA,
+];
 
 /** GET /api/fichas */
 export interface FiltroFichasDto {
   /** Padrão: todos menos VALIDADA */
   status: StatusFicha[];
+  /** Status que a rota mostra; limita também os contadores */
+  escopo: StatusFicha[];
   loteId?: number;
   revisorId?: number;
   /** Nome, nascimento ou nome da mãe */
   busca?: string;
-  /** atencao = fichas com alerta primeiro */
+  /** atencao = fichas com alerta primeiro; pendencias = na ordem de STATUS_REVISAO */
   ordenar: (typeof ORDENS)[number];
   paginacao: Paginacao;
 }
@@ -55,14 +65,17 @@ export interface AprovarFichaDto {
   pacienteId: string | null;
 }
 
+/** `permitidos` limita os status aceitos; sem "status" na query, traz todos eles. */
 export function lerFiltroFichasDto(
   q: Record<string, string | undefined>,
+  permitidos?: StatusFicha[],
 ): FiltroFichasDto {
   const status = q.status
-    ? q.status.split(',').map((s) => umDe(s.trim(), STATUS, 'status'))
-    : STATUS.filter((s) => s !== StatusFicha.VALIDADA);
+    ? q.status.split(',').map((s) => umDe(s.trim(), permitidos ?? STATUS, 'status'))
+    : (permitidos ?? STATUS.filter((s) => s !== StatusFicha.VALIDADA));
   return {
     status,
+    escopo: permitidos ?? STATUS,
     loteId: idDaQuery(q.loteId, 'loteId'),
     revisorId: idDaQuery(q.revisorId, 'revisorId'),
     busca: q.busca?.trim() || undefined,

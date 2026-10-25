@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hemocentro API",
-    "description": "As 27 rotas do Planejamento da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
+    "description": "As 28 rotas do Planejamento da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -27,7 +27,7 @@
                 "usuarios"
               ]
             },
-            "description": "Cria quem usa o sistema. 201; 409 se o email já existir. Não exige X-Usuario-Id (é por aqui que o primeiro usuário é criado).",
+            "description": "Cria quem usa o sistema. 201; 409 se o email já existir. Não exige X-Usuario-Id (é por aqui que o primeiro usuário é criado). 400 se o colaboradorId não existir.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"colaboradorId\": null\n}",
@@ -96,7 +96,7 @@
                 "{{usuarioId}}"
               ]
             },
-            "description": "Altera nome, ativo e/ou colaboradorId (null desliga). 409 se a colaboradora já estiver ligada a outro usuário.",
+            "description": "Altera nome, ativo e/ou colaboradorId (null desliga). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"ativo\": true,\n  \"colaboradorId\": null\n}",
@@ -232,9 +232,9 @@
                 },
                 {
                   "key": "nome",
-                  "value": "Digitalização • 09/10/2026",
+                  "value": "Ficha mensal",
                   "type": "text",
-                  "description": "Opcional"
+                  "description": "Opcional. Padrão: data do envio (25-10-2026). Cada arquivo aparece como {lote}.{seq} - {nome}, ex.: 12.1 - 25-10-2026"
                 }
               ]
             }
@@ -401,7 +401,7 @@
                 {
                   "key": "ordenar",
                   "value": "atencao",
-                  "description": "atencao (com alerta primeiro) ou recentes",
+                  "description": "atencao (com alerta primeiro), recentes ou pendencias (COM_PENDENCIA → EM_REVISAO → AGUARDANDO_REVISAO → VALIDADA)",
                   "disabled": false
                 },
                 {
@@ -419,6 +419,68 @@
               ]
             },
             "description": "Fila com filtros e contadores. Sem \"status\", traz todos menos VALIDADA."
+          }
+        },
+        {
+          "name": "Fichas em revisão",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/revisao?ordenar=pendencias&pagina=1&limite=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "revisao"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "COM_PENDENCIA,EM_REVISAO",
+                  "description": "Um ou mais entre AGUARDANDO_REVISAO, EM_REVISAO, COM_PENDENCIA e VALIDADA",
+                  "disabled": true
+                },
+                {
+                  "key": "loteId",
+                  "value": "{{loteId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "revisorId",
+                  "value": "{{usuarioId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "busca",
+                  "value": "Ana",
+                  "description": "Nome, nascimento (AAAA-MM-DD ou DD/MM/AAAA) ou nome da mãe",
+                  "disabled": true
+                },
+                {
+                  "key": "ordenar",
+                  "value": "pendencias",
+                  "description": "atencao (com alerta primeiro), recentes ou pendencias (COM_PENDENCIA → EM_REVISAO → AGUARDANDO_REVISAO → VALIDADA)",
+                  "disabled": false
+                },
+                {
+                  "key": "pagina",
+                  "value": "1",
+                  "description": "Página (começa em 1)",
+                  "disabled": false
+                },
+                {
+                  "key": "limite",
+                  "value": "20",
+                  "description": "Itens por página (máx. 100)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Só fichas em AGUARDANDO_REVISAO, EM_REVISAO, COM_PENDENCIA e VALIDADA. Mesmos filtros e contadores da fila. Com ordenar=pendencias: COM_PENDENCIA → EM_REVISAO → AGUARDANDO_REVISAO → VALIDADA, a mais recente primeiro dentro de cada status."
           }
         },
         {
@@ -547,7 +609,7 @@
                 "dados"
               ]
             },
-            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO.",
+            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO. Cidade (com a UF) e colaborador novos precisam já estar cadastrados (GET /cidades, GET /colaboradores); senão 400 dizendo o campo. Valores que a IA leu e não foram alterados não travam o salvar.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    }\n  ]\n}",
@@ -623,7 +685,7 @@
                 "aprovar"
               ]
             },
-            "description": "Grava paciente, transfusões, pesquisas e kits numa transação. Body {} cria paciente novo; { \"pacienteId\": \"...\" } liga a um paciente existente. 422 sem nome ou nascimento; 409 se o prontuário já for de outro paciente.",
+            "description": "Grava paciente, transfusões, pesquisas e kits numa transação. Body {} cria paciente novo; { \"pacienteId\": \"...\" } liga a um paciente existente. 422 sem nome ou nascimento, ou com cidade/colaborador que não está cadastrado (cidades e colaboradores não são mais criados na aprovação); 409 se o prontuário já for de outro paciente.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -886,7 +948,7 @@
           }
         },
         {
-          "name": "Exportar eventos (CSV)",
+          "name": "Exportar eventos (XLSX)",
           "request": {
             "method": "GET",
             "header": [],
@@ -915,7 +977,7 @@
                 }
               ]
             },
-            "description": "Mesmos filtros da listagem, sem paginação. CSV com \";\" para abrir no Excel."
+            "description": "Mesmos filtros da listagem, sem paginação. Baixa trilha-auditoria.xlsx (use Send and Download)."
           }
         },
         {

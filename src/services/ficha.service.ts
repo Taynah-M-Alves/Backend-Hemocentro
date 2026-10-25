@@ -5,12 +5,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type {
-  AlterarDadosDto,
-  AprovarFichaDto,
-  AssumirRevisaoDto,
-  FiltroFichasDto,
-  PendenciaDto,
+import {
+  STATUS_REVISAO,
+  type AlterarDadosDto,
+  type AprovarFichaDto,
+  type AssumirRevisaoDto,
+  type FiltroFichasDto,
+  type PendenciaDto,
 } from '../dtos/ficha.dto.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
@@ -74,7 +75,11 @@ export class FichaService {
           revisor: { select: { id: true, nome: true } },
         },
       }),
-      this.prisma.fichaDigitalizada.groupBy({ by: ['status'], _count: true }),
+      this.prisma.fichaDigitalizada.groupBy({
+        by: ['status'],
+        where: { status: { in: dto.escopo } },
+        _count: true,
+      }),
     ]);
 
     let itens = fichas.map((f) => {
@@ -112,6 +117,10 @@ export class FichaService {
         (a, b) =>
           b.alertas.length - a.alertas.length || a.desde.getTime() - b.desde.getTime(),
       );
+    } else if (dto.ordenar === 'pendencias') {
+      // COM_PENDENCIA → EM_REVISAO → AGUARDANDO_REVISAO → VALIDADA; outros status no fim.
+      // O sort é estável, então dentro de cada status segue a mais recente primeiro.
+      itens.sort((a, b) => prioridade(a.status) - prioridade(b.status));
     }
 
     const contagem = Object.fromEntries(porStatus.map((s) => [s.status, s._count]));
@@ -222,6 +231,9 @@ export class FichaService {
       });
     }
 
+    const invalidas = await this.persistencia.referenciasInvalidas(this.prisma, dados, original);
+    if (invalidas.length) throw new BadRequestException(invalidas.join(' '));
+
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.fichaDigitalizada.updateMany({
         where: { id, status: StatusFicha.EM_REVISAO, revisorId: usuarioId },
@@ -271,6 +283,10 @@ export class FichaService {
       exigirIdentificacao(dados);
     } catch (err) {
       throw new UnprocessableEntityException(`${mensagemDeErro(err)} Corrija antes de aprovar.`);
+    }
+    const invalidas = await this.persistencia.referenciasInvalidas(this.prisma, dados);
+    if (invalidas.length) {
+      throw new UnprocessableEntityException(`${invalidas.join(' ')} Corrija antes de aprovar.`);
     }
     const identificado = dados as FichaExtraida & {
       paciente: { nome: string; dataNascimento: string };
@@ -413,6 +429,11 @@ const foraDeOrdem = (ficha: { id: number; status: StatusFicha }, acao: string) =
   new ConflictException(
     `A ficha ${codigoFicha(ficha.id)} está em ${ficha.status}; não é possível ${acao}.`,
   );
+
+const prioridade = (status: StatusFicha) => {
+  const i = STATUS_REVISAO.indexOf(status);
+  return i < 0 ? STATUS_REVISAO.length : i;
+};
 
 const semAcento = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
