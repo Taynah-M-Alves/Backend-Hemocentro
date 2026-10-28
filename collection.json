@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hemocentro API",
-    "description": "As 28 rotas do Planejamento da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
+    "description": "As 29 rotas do Planejamento da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -612,7 +612,7 @@
             "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO. Cidade (com a UF) e colaborador novos precisam já estar cadastrados (GET /cidades, GET /colaboradores); senão 400 dizendo o campo. Valores que a IA leu e não foram alterados não travam o salvar.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    }\n  ]\n}",
+              "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    },\n    {\n      \"campo\": \"kits[0].resultados[0].frio\",\n      \"valor\": \"1+\",\n      \"pagina\": 2\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -651,6 +651,44 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"motivo\": \"Data de nascimento ilegível: dia 14 ou 19\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusar ficha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "{{usuarioId}}",
+                "description": "Quem está usando o sistema (provisório até existir login)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fichas/{{fichaId}}/recusar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fichas",
+                "{{fichaId}}",
+                "recusar"
+              ]
+            },
+            "description": "Documento ilegível ou de outro tipo → RECUSADA. Aceita FALHA_LEITURA, AGUARDANDO_REVISAO, COM_PENDENCIA e EM_REVISAO (só pelo revisor atual). motivo: ILEGIVEL ou OUTRO_DOCUMENTO; observacao é opcional. A ficha sai de /fichas/revisao e o motivo fica na auditoria (FICHA_RECUSADA).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"ILEGIVEL\",\n  \"observacao\": \"Digitalização borrada nas páginas 2 e 3\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

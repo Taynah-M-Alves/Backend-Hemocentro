@@ -158,8 +158,11 @@ export class FichaPersistenciaService {
     rotulo: string,
     avisos: string[],
   ): Promise<boolean> {
-    const { dataEnvio, tipoHemocomponente, numeroDoacao, grsRhd, volMl } = t;
-    if (!dataEnvio || !tipoHemocomponente || !numeroDoacao || !grsRhd || volMl === null) {
+    const { dataEnvio, tipoHemocomponente, numeroDoacao, grsRhd, volMl, testesPai, provaCruzada } = t;
+    if (
+      !dataEnvio || !tipoHemocomponente || !numeroDoacao || !grsRhd || volMl === null ||
+      !testesPai || !provaCruzada
+    ) {
       avisos.push(
         `${rotulo} não foi gravada: faltou ${camposFaltandoNaTransfusao(t).join(', ')}.`,
       );
@@ -182,8 +185,8 @@ export class FichaPersistenciaService {
         tracejador: t.tracejador,
         grsRhd,
         volMl,
-        testesPai: t.testesPai,
-        provaCruzada: t.provaCruzada,
+        testesPai,
+        provaCruzada,
         pagina: t.pagina,
         cidadeDestinoId: await this.idCidade(tx, t.cidadeDestino, t.ufDestino),
         responsavelLiberacaoId: await this.idColaborador(tx, t.responsavelLiberacao),

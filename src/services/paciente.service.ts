@@ -158,7 +158,7 @@ export class PacienteService {
             ...origem,
             resultados: {
               orderBy: { celula: 'asc' },
-              select: { celula: true, lissCoombs: true, enzima: true },
+              select: { celula: true, lissCoombs: true, enzima: true, frio: true },
             },
           },
         },

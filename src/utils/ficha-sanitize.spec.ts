@@ -1,4 +1,5 @@
 import {
+  camposFaltandoNaTransfusao,
   dataIso,
   exigirIdentificacao,
   sanitizarFicha,
@@ -68,10 +69,22 @@ describe('sanitizarFicha', () => {
   it('aceita o nome do enum, como o PATCH da revisão envia', () => {
     const ficha = sanitizarFicha({
       paciente: { raca: '3', aboRh: 'AB_NEGATIVO', sexo: 'Feminino' },
-      kits: [{ tipo: 'ID-DiaPanel', data: '10/12/2025', resultados: [{ celula: 1, lissCoombs: '0' }] }],
+      kits: [
+        {
+          tipo: 'ID-DiaPanel',
+          data: '10/12/2025',
+          resultados: [{ celula: 1, lissCoombs: '0', frio: '2+' }],
+        },
+      ],
     });
     expect(ficha.paciente).toMatchObject({ raca: 'PARDO', aboRh: 'AB_NEGATIVO', sexo: 'F' });
     expect(ficha.kits[0]).toMatchObject({ tipo: 'DIAPANEL', dataPesquisa: '2025-12-10' });
+    expect(ficha.kits[0].resultados[0]).toEqual({
+      celula: 1,
+      lissCoombs: '0',
+      enzima: null,
+      frio: '2+',
+    });
   });
 
   it('recusa leitura ilegível em vez de gravar dados errados', () => {
@@ -87,6 +100,18 @@ describe('sanitizarFicha', () => {
     expect(() => exigirIdentificacao(ficha)).toThrow(
       /nome do paciente e data de nascimento/,
     );
+  });
+
+  it('distingue NR (não realizado) de campo vazio ou ilegível', () => {
+    const ficha = sanitizarFicha({
+      transfusoes: [
+        { testesPai: 'Não realizado', provaCruzada: null },
+        { testesPai: 'NAO_REALIZADO', provaCruzada: '???' },
+      ],
+    });
+    expect(ficha.transfusoes[0]).toMatchObject({ testesPai: 'NAO_REALIZADO', provaCruzada: null });
+    expect(ficha.transfusoes[1]).toMatchObject({ testesPai: 'NAO_REALIZADO', provaCruzada: null });
+    expect(camposFaltandoNaTransfusao(ficha.transfusoes[0])).toContain('prova cruzada');
   });
 
   it('recusa resposta que não é objeto', () => {

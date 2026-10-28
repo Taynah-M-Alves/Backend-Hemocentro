@@ -72,6 +72,7 @@ enum StatusFicha {
   EM_REVISAO
   COM_PENDENCIA
   VALIDADA
+  RECUSADA // ilegível ou não é ficha; não vai para a revisão nem para as tabelas clínicas
 }
 
 enum TipoEvento {
@@ -84,6 +85,7 @@ enum TipoEvento {
   CAMPO_EDITADO
   PENDENCIA_SINALIZADA
   FICHA_VALIDADA
+  FICHA_RECUSADA
   VINCULO_CONFIRMADO
   CONSULTA
 }
@@ -269,6 +271,7 @@ model ResultadoCelula {
   celula     Int
   lissCoombs String? @map("liss_coombs") @db.VarChar(5) // 0, 1+ … 4+
   enzima     String? @db.VarChar(5)
+  frio       String? @db.VarChar(5) // leitura a 4 °C
 
   kit KitId @relation(fields: [kitId], references: [id], onDelete: Cascade)
 

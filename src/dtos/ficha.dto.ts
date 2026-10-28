@@ -13,6 +13,10 @@ import {
 
 const STATUS = Object.values(StatusFicha);
 const ORDENS = ['recentes', 'atencao', 'pendencias'] as const;
+export const MOTIVOS_RECUSA = ['ILEGIVEL', 'OUTRO_DOCUMENTO'] as const;
+
+/** Fichas que já saíram do fluxo; GET /api/fichas sem "status" não traz e "todas" não conta. */
+export const FINALIZADAS: StatusFicha[] = [StatusFicha.VALIDADA, StatusFicha.RECUSADA];
 
 /** GET /api/fichas/revisao — também é a ordem de ordenar=pendencias */
 export const STATUS_REVISAO: StatusFicha[] = [
@@ -24,7 +28,7 @@ export const STATUS_REVISAO: StatusFicha[] = [
 
 /** GET /api/fichas */
 export interface FiltroFichasDto {
-  /** Padrão: todos menos VALIDADA */
+  /** Padrão: todos menos FINALIZADAS */
   status: StatusFicha[];
   /** Status que a rota mostra; limita também os contadores */
   escopo: StatusFicha[];
@@ -60,6 +64,12 @@ export interface AssumirRevisaoDto {
   justificativa: string | null;
 }
 
+/** POST /api/fichas/:id/recusar */
+export interface RecusarFichaDto {
+  motivo: (typeof MOTIVOS_RECUSA)[number];
+  observacao: string | null;
+}
+
 /** POST /api/fichas/:id/aprovar — sem pacienteId, cria um paciente novo */
 export interface AprovarFichaDto {
   pacienteId: string | null;
@@ -72,7 +82,7 @@ export function lerFiltroFichasDto(
 ): FiltroFichasDto {
   const status = q.status
     ? q.status.split(',').map((s) => umDe(s.trim(), permitidos ?? STATUS, 'status'))
-    : (permitidos ?? STATUS.filter((s) => s !== StatusFicha.VALIDADA));
+    : (permitidos ?? STATUS.filter((s) => !FINALIZADAS.includes(s)));
   return {
     status,
     escopo: permitidos ?? STATUS,
@@ -116,3 +126,11 @@ export const lerAssumirRevisaoDto = (body: unknown): AssumirRevisaoDto => ({
 export const lerAprovarFichaDto = (body: unknown): AprovarFichaDto => ({
   pacienteId: uuidOpcional(corpo(body ?? {}), 'pacienteId') ?? null,
 });
+
+export function lerRecusarFichaDto(body: unknown): RecusarFichaDto {
+  const c = corpo(body);
+  return {
+    motivo: umDe(textoObrigatorio(c, 'motivo', 50), MOTIVOS_RECUSA, 'motivo'),
+    observacao: textoOpcional(c, 'observacao', 2000) ?? null,
+  };
+}

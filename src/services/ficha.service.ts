@@ -6,12 +6,14 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+  FINALIZADAS,
   STATUS_REVISAO,
   type AlterarDadosDto,
   type AprovarFichaDto,
   type AssumirRevisaoDto,
   type FiltroFichasDto,
   type PendenciaDto,
+  type RecusarFichaDto,
 } from '../dtos/ficha.dto.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
@@ -44,6 +46,14 @@ const DETALHE = {
 } as const;
 
 type FichaComDetalhe = Prisma.FichaDigitalizadaGetPayload<{ include: typeof DETALHE }>;
+
+/** De onde dá para recusar; em EM_REVISAO, só o revisor atual. */
+const RECUSAVEIS: StatusFicha[] = [
+  StatusFicha.FALHA_LEITURA,
+  StatusFicha.AGUARDANDO_REVISAO,
+  StatusFicha.EM_REVISAO,
+  StatusFicha.COM_PENDENCIA,
+];
 
 /**
  * Fila de revisão e Revisar ficha. Enquanto não é aprovada, a leitura da IA fica só em
@@ -128,7 +138,7 @@ export class FichaService {
     return {
       contadores: {
         todas: porStatus
-          .filter((s) => s.status !== StatusFicha.VALIDADA)
+          .filter((s) => !FINALIZADAS.includes(s.status))
           .reduce((soma, s) => soma + s._count, 0),
         ...contagem,
       },
@@ -137,7 +147,24 @@ export class FichaService {
   }
 
   async detalhe(id: number) {
-    return this.formatar(await this.carregar(id));
+    const ficha = await this.carregar(id);
+    const recusa =
+      ficha.status === StatusFicha.RECUSADA
+        ? await this.prisma.eventoAuditoria.findFirst({
+            where: { fichaId: id, tipo: 'FICHA_RECUSADA' },
+            orderBy: { ocorridoEm: 'desc' },
+            include: { usuario: { select: { id: true, nome: true } } },
+          })
+        : null;
+    return {
+      ...this.formatar(ficha),
+      recusa: recusa && {
+        motivo: recusa.valorPosterior,
+        observacao: recusa.justificativa,
+        recusadoPor: recusa.usuario,
+        recusadoEm: recusa.ocorridoEm,
+      },
+    };
   }
 
   /** AGUARDANDO_REVISAO ou COM_PENDENCIA → EM_REVISAO, com quem chamou como revisor. */
@@ -267,6 +294,36 @@ export class FichaService {
       });
     });
     return { id, status: StatusFicha.COM_PENDENCIA };
+  }
+
+  /**
+   * Documento ilegível ou que não é ficha → RECUSADA. Sai da fila de revisão e não grava
+   * nada nas tabelas clínicas; o motivo e a observação ficam na auditoria.
+   */
+  async recusar(id: number, usuarioId: number, dto: RecusarFichaDto) {
+    const usuario = await this.usuarios.exigirAtivo(usuarioId);
+    const ficha = await this.carregar(id);
+    if (!RECUSAVEIS.includes(ficha.status)) throw foraDeOrdem(ficha, 'recusar');
+    if (ficha.status === StatusFicha.EM_REVISAO) exigirRevisor(ficha, usuarioId);
+
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.fichaDigitalizada.updateMany({
+        where: { id, status: ficha.status, revisorId: ficha.revisorId },
+        data: { status: StatusFicha.RECUSADA, revisorId: null, revisaoIniciadaEm: null },
+      });
+      if (!count) throw new ConflictException('A ficha mudou de revisor ou de status. Recarregue a ficha.');
+      await tx.eventoAuditoria.create({
+        data: {
+          tipo: 'FICHA_RECUSADA',
+          ...this.alvo(ficha),
+          usuarioId,
+          valorAnterior: ficha.status,
+          valorPosterior: dto.motivo,
+          justificativa: dto.observacao,
+        },
+      });
+    });
+    return { id, status: StatusFicha.RECUSADA, motivo: dto.motivo, recusadoPor: usuario };
   }
 
   /**
@@ -413,7 +470,7 @@ function alertas(dados: FichaExtraida | null, pacienteSugeridoId: string | null)
   ].filter((a): a is Alerta => !!a);
 }
 
-/** Regra de dono: em EM_REVISAO, só o revisor atual pode salvar, sinalizar ou aprovar. */
+/** Regra de dono: em EM_REVISAO, só o revisor atual pode salvar, sinalizar, aprovar ou recusar. */
 function exigirRevisor(ficha: FichaComDetalhe, usuarioId: number): void {
   if (ficha.status !== StatusFicha.EM_REVISAO) {
     throw foraDeOrdem(ficha, 'alterar (inicie a revisão primeiro)');

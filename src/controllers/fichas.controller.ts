@@ -17,6 +17,7 @@ import {
   lerAssumirRevisaoDto,
   lerFiltroFichasDto,
   lerPendenciaDto,
+  lerRecusarFichaDto,
   STATUS_REVISAO,
 } from '../dtos/ficha.dto.js';
 import { FichaService } from '../services/ficha.service.js';
@@ -87,6 +88,17 @@ export class FichasController {
     @Body() body: unknown,
   ) {
     return this.fichas.sinalizarPendencia(id, usuarioId, lerPendenciaDto(body));
+  }
+
+  /** POST /api/fichas/:id/recusar — body { "motivo": "ILEGIVEL" | "OUTRO_DOCUMENTO", "observacao"? } */
+  @Post(':id/recusar')
+  @HttpCode(HttpStatus.OK)
+  recusar(
+    @Param('id', ParseIntPipe) id: number,
+    @UsuarioId() usuarioId: number,
+    @Body() body: unknown,
+  ) {
+    return this.fichas.recusar(id, usuarioId, lerRecusarFichaDto(body));
   }
 
   /** POST /api/fichas/:id/aprovar — body { "pacienteId"? }; sem pacienteId cria paciente novo */

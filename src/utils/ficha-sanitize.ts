@@ -62,6 +62,8 @@ export function camposFaltandoNaTransfusao(t: TransfusaoExtraida): string[] {
     ['número da doação', t.numeroDoacao],
     ['GR.S/RhD', t.grsRhd],
     ['volume', t.volMl],
+    ['PAI', t.testesPai],
+    ['prova cruzada', t.provaCruzada],
   ];
   return obrigatorios
     .filter(([, valor]) => valor === null)
@@ -174,6 +176,7 @@ function sanitizarKit(k: Obj): KitExtraido {
               celula,
               lissCoombs: texto(r.lissCoombs, 5),
               enzima: texto(r.enzima, 5),
+              frio: texto(r.frio, 5),
             },
           ];
     }),
@@ -244,12 +247,16 @@ function nomePessoa(v: unknown): string | null {
   return valido ? nome : null;
 }
 
-/** "Positivo"/"POS" → POSITIVO, "Negativo"/"NEG" → NEGATIVO, qualquer outra coisa → não realizado. */
-function resultadoTeste(v: unknown): ResultadoTeste {
+/**
+ * "Positivo"/"POS" → POSITIVO, "Negativo"/"NEG" → NEGATIVO, "NR"/"Não realizado" → NAO_REALIZADO.
+ * Vazio ou ilegível fica null: NR está escrito no papel, null é a falta de leitura.
+ */
+function resultadoTeste(v: unknown): ResultadoTeste | null {
   const valor = normalizado(v);
   if (valor.startsWith('POS')) return ResultadoTeste.POSITIVO;
   if (valor.startsWith('NEG')) return ResultadoTeste.NEGATIVO;
-  return ResultadoTeste.NAO_REALIZADO;
+  if (valor === 'NR' || /^NAO.?REALIZ/.test(valor)) return ResultadoTeste.NAO_REALIZADO;
+  return null;
 }
 
 function sexo(v: unknown): Sexo | null {

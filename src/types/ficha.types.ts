@@ -42,8 +42,9 @@ export interface TransfusaoExtraida {
   tracejador: string | null;
   grsRhd: Abo | null;
   volMl: number | null;
-  testesPai: ResultadoTeste;
-  provaCruzada: ResultadoTeste;
+  /** NAO_REALIZADO = "NR" escrito na ficha; null = vazio ou ilegível */
+  testesPai: ResultadoTeste | null;
+  provaCruzada: ResultadoTeste | null;
   cidadeDestino: string | null;
   ufDestino: string | null;
   responsavelLiberacao: string | null;
@@ -86,6 +87,7 @@ export interface KitExtraido {
     celula: number;
     lissCoombs: string | null;
     enzima: string | null;
+    frio: string | null;
   }[];
   pagina: number | null;
 }

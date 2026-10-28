@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "StatusFicha" ADD VALUE 'RECUSADA';
+
+-- AlterEnum
+ALTER TYPE "TipoEvento" ADD VALUE 'FICHA_RECUSADA' AFTER 'FICHA_VALIDADA';

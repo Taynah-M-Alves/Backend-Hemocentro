@@ -20,6 +20,10 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule);
   configurarApp(app);
+  app.enableCors({
+    origin: (process.env.CORS_ORIGINS ?? 'http://localhost:8080,http://localhost:8081').split(','),
+    exposedHeaders: ['Content-Disposition'], // o front lê o nome do arquivo baixado
+  });
   app.enableShutdownHooks(); // para a fila da IA ao desligar
   await app.listen(porta);
   Logger.log(`Servidor rodando em http://localhost:${porta}/api`);
