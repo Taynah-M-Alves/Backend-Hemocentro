@@ -17,7 +17,7 @@ import {
 } from '../utils/ficha-sanitize.js';
 
 /** Tempo máximo esperando uma IA antes de desistir e tentar a próxima. */
-const TIMEOUT_MS = 180_000;
+const TIMEOUT_MS = 500_000;
 /**
  * Inclui o "raciocínio" do modelo, que gasta boa parte do limite. Com 8000 o Gemini cortava o
  * JSON no meio depois que o prompt passou a pedir kits e fenotipagem.
@@ -29,7 +29,7 @@ const ESPERA_INICIAL_MS = 1200;
 const STATUS_TRANSITORIOS = [429, 500, 502, 503, 504];
 /** Erros de rede e tempo esgotado também passam se tentar de novo mais tarde. */
 const MENSAGENS_TRANSITORIAS =
-  /high demand|timed? ?out|timeout|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up/i;
+  /high demand|timed? ?out|timeout|aborted|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up/i;
 
 /** Erro de "todas as IAs falharam". `transitoria` = alguma falhou por algo passageiro. */
 export class FalhaLeituraError extends Error {
@@ -43,9 +43,9 @@ export class FalhaLeituraError extends Error {
 
 /** Modelo usado quando o *_MODEL correspondente não está no .env. Todos precisam ler imagens. */
 const MODELO_PADRAO: Record<ProvedorIa, string> = {
-  gemini: 'gemini-3.8-flash',
+  gemini: 'gemini-3.7-flash',
   groq: 'meta-llama/llama-4-scout-17b-16e-instruct',
-  openrouter: 'google/gemini-3.8-flash',
+  openrouter: 'google/gemini-3.7-flash',
   openai: 'gpt-4.1',
 };
 
