@@ -57,10 +57,10 @@ export interface PesquisaExtraida {
   gs: GrupoAbo | null;
   rh: Rh | null;
   dFraco: string | null;
-  pai: string | null;
-  tad: string | null;
-  autocontrole: string | null;
-  dcScreening: string | null;
+  pai: ResultadoTeste | null;
+  tad: ResultadoTeste | null;
+  autocontrole: ResultadoTeste | null;
+  dcScreening: ResultadoTeste | null;
   especificidade: string | null;
   interpretacao: string | null;
   observacao: string | null;

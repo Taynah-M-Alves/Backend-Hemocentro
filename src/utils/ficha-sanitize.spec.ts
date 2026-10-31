@@ -63,6 +63,7 @@ describe('sanitizarFicha', () => {
       dataPesquisa: '2026-09-15', // "data" antigo também é aceito
       gs: 'O',
       rh: 'POSITIVO',
+      pai: 'NEGATIVO',
     });
   });
 

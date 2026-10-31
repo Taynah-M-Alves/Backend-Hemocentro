@@ -30,7 +30,7 @@ Valores aceitos:
 - paciente.sexo: "F" ou "M"
 - paciente.aboRh e transfusoes[].grsRhd: grupo e Rh, ex.: "O+", "A-"
 - gs: só o grupo, ex.: "O", "AB". rh: "Positivo", "Negativo" ou "Não determinado"
-- testesPai e provaCruzada: um de [NR, POSITIVO, NEGATIVO]; "NR" = não realizado (só quando "NR"
+- testesPai, provaCruzada e pesquisas[].pai/tad/autocontrole/dcScreening: um de [NR, POSITIVO, NEGATIVO]; "NR" = não realizado (só quando "NR"
   estiver escrito na ficha; célula vazia ou ilegível = null)
 - kits[].tipo: "DIACELL" ou "DIAPANEL"
 - cpf e cartaoSus: só dígitos. numeroDoacao: só dígitos, mantenha zeros à esquerda

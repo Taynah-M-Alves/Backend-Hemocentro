@@ -130,10 +130,12 @@ model Cidade {
   nomeCidade           String               @map("nome_cidade") @db.VarChar(120)
   estado_id            Int
   code                 Int
+  uf                   String?              @db.Char(2) // cópia da UF do estado
   estados              estados              @relation(fields: [estado_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cidade_estado")
   fichasTransfusionais FichaTransfusional[]
   pacientes            Paciente[]
 
+  @@unique([nomeCidade, uf])
   @@map("cidade")
 }
 
@@ -198,10 +200,10 @@ model PesquisaAnticorpos {
   gs             GrupoAbo?
   rh             Rh? // "Fator Rh"
   dFraco         String?   @map("d_fraco") @db.VarChar(50)
-  pai            String?   @db.VarChar(50) // Pesquisa de anticorpos irregulares
-  tad            String?   @db.VarChar(50) // Teste da antiglobulina humana
-  autocontrole   String?   @db.VarChar(50)
-  dcScreening    String?   @map("dc_screening") @db.VarChar(50) // Antiglobulina monoespecífico DC-Screening I
+  pai            ResultadoTeste? // Pesquisa de anticorpos irregulares
+  tad            ResultadoTeste? // Teste da antiglobulina humana
+  autocontrole   ResultadoTeste?
+  dcScreening    ResultadoTeste? @map("dc_screening") // Antiglobulina monoespecífico DC-Screening I
   especificidade String?   @db.VarChar(255) // Identificação de anticorpos irregulares
   interpretacao  String?   @db.VarChar(255)
   observacao     String?   @db.VarChar(255)
