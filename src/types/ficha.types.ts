@@ -79,7 +79,10 @@ export interface KitExtraido {
   rh: Rh | null;
   tad: string | null;
   pai: string | null;
-  autocontrole: string | null;
+  /** Autocontrole por método, como as colunas de `resultados` */
+  autocontroleLissCoombs: string | null;
+  autocontroleEnzima: string | null;
+  autocontroleFrio: string | null;
   interpretacao: string | null;
   tecnica: string | null;
   observacao: string | null;

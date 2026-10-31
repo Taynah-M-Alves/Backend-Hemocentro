@@ -11,8 +11,9 @@ MANUSCRITOS. Os tipos de página possíveis são:
    GR.S/RhD | VOL/ml | PAI | PROVA CRUZADA | Destino/Responsável por liberação
    (ex.: "Enviado p/ Cuiabá Marcia"). Cada linha vira UM item em "transfusoes".
 2. Folhas Bio-Rad "ID-DiaCell I-II" ou "ID-DiaPanel": a tabela de antígenos é IMPRESSA e deve ser
-   IGNORADA. Leia só o que é manuscrito: Nome, DN, "Grupo sanguíneo + antígenos" (GS, Rh, TAD, PAI,
-   Autocontrole), o resultado de cada célula (colunas LISS/Coombs, Enzima e Frio/4 °C: 0, 1+, 2+, 3+, 4+),
+   IGNORADA. Leia só o que é manuscrito: Nome, DN, "Grupo sanguíneo + antígenos" (GS, Rh, TAD, PAI),
+   o resultado de cada célula e do Autocontrole (colunas LISS/Coombs, Enzima e Frio/4 °C: 0, 1+, 2+,
+   3+, 4+; o Autocontrole vai em autocontroleLissCoombs, autocontroleEnzima e autocontroleFrio),
    "Interpretação", "Técnica utilizada", "Observação" e "Data". Cada folha vira UM item em "kits".
 3. "PESQUISA IMUNO HEMATOLÓGICA": PACIENTE, PRONTUÁRIO, NOME DA MÃE, DN, RAÇA/COR, GRUPO SANGUÍNEO,
    FATOR Rh, D fraco, PAI, TAD, AUTOCONTROLE, DC-Screening, identificação/especificidade de anticorpos,
@@ -45,4 +46,4 @@ Retorne APENAS um JSON válido. Formato obrigatório:
 "paciente":{"nome":"Exemplo da Silva","nomeSocial":null,"prontuario":1234,"dataNascimento":"1990-01-31","sexo":"F","raca":"Pardo","aboRh":"O+","cpf":null,"cartaoSus":null,"diagnostico":null,"nomeMae":null,"nomePai":null,"alergias":null,"municipio":"Cuiabá","ufMunicipio":"MT"},
 "transfusoes":[{"dataEnvio":"2026-01-15","tipoHemocomponente":"CHDF","numeroDoacao":"0152260418058","numeroServico":null,"tracejador":null,"grsRhd":"O+","volMl":250,"testesPai":"NR","provaCruzada":"NR","cidadeDestino":"Cuiabá","ufDestino":"MT","responsavelLiberacao":"Maria","pagina":1}],
 "pesquisas":[{"dataPesquisa":"2026-01-10","gs":"O","rh":"Positivo","dFraco":null,"pai":"Negativo","tad":"Negativo","autocontrole":"Negativo","dcScreening":null,"especificidade":null,"interpretacao":null,"observacao":null,"amostra":"EDTA","metodologia":"Gel/Centrifugação","responsavel":null,"fenotipagem":[{"antigeno":"C","resultado":"4+"}],"pagina":4}],
-"kits":[{"tipo":"DIACELL","dataPesquisa":"2025-12-10","gs":"O","rh":"Positivo","tad":"Negativo","pai":"Positivo","autocontrole":"Negativo","interpretacao":"Anti-c pequeno","tecnica":null,"observacao":null,"resultados":[{"celula":1,"lissCoombs":"0","enzima":"0","frio":"0"},{"celula":2,"lissCoombs":"2+","enzima":"3+","frio":null}],"pagina":2}]}`;
+"kits":[{"tipo":"DIACELL","dataPesquisa":"2025-12-10","gs":"O","rh":"Positivo","tad":"Negativo","pai":"Positivo","autocontroleLissCoombs":"0","autocontroleEnzima":"0","autocontroleFrio":null,"interpretacao":"Anti-c pequeno","tecnica":null,"observacao":null,"resultados":[{"celula":1,"lissCoombs":"0","enzima":"0","frio":"0"},{"celula":2,"lissCoombs":"2+","enzima":"3+","frio":null}],"pagina":2}]}`;

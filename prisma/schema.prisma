@@ -240,17 +240,20 @@ model FenotipagemAntigeno {
 
 /// Folhas Bio-Rad ID-DiaCell I-II e ID-DiaPanel (só os campos manuscritos; a tabela de antígenos é impressa)
 model KitId {
-  id            Int       @id @default(autoincrement())
-  tipo          TipoKitId
-  dataPesquisa  DateTime  @map("data_pesquisa") @db.Date
-  gs            GrupoAbo?
-  rh            Rh?
-  tad           String?   @db.VarChar(50)
-  pai           String?   @db.VarChar(50)
-  autocontrole  String?   @db.VarChar(50)
-  interpretacao String?   @db.VarChar(255) // ex.: Anti-c pequeno
-  tecnica       String?   @db.VarChar(100) // "Técnica utilizada" (DiaPanel)
-  observacao    String?   @db.VarChar(255) // "Observação" (DiaCell)
+  id                     Int       @id @default(autoincrement())
+  tipo                   TipoKitId
+  dataPesquisa           DateTime  @map("data_pesquisa") @db.Date
+  gs                     GrupoAbo?
+  rh                     Rh?
+  tad                    String?   @db.VarChar(50)
+  pai                    String?   @db.VarChar(50)
+  // Autocontrole: um resultado por método, como em ResultadoCelula (0, 1+ … 4+)
+  autocontroleLissCoombs String?   @map("autocontrole_liss_coombs") @db.VarChar(5)
+  autocontroleEnzima     String?   @map("autocontrole_enzima") @db.VarChar(5)
+  autocontroleFrio       String?   @map("autocontrole_frio") @db.VarChar(5) // leitura a 4 °C
+  interpretacao          String?   @db.VarChar(255) // ex.: Anti-c pequeno
+  tecnica                String?   @db.VarChar(100) // "Técnica utilizada" (DiaPanel)
+  observacao             String?   @db.VarChar(255) // "Observação" (DiaCell)
 
   pacienteId String   @map("paciente_id") @db.Uuid
   paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)

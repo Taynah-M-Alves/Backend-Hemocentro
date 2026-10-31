@@ -73,12 +73,20 @@ describe('sanitizarFicha', () => {
         {
           tipo: 'ID-DiaPanel',
           data: '10/12/2025',
+          autocontroleLissCoombs: '0',
+          autocontroleFrio: ' 1+ ',
           resultados: [{ celula: 1, lissCoombs: '0', frio: '2+' }],
         },
       ],
     });
     expect(ficha.paciente).toMatchObject({ raca: 'PARDO', aboRh: 'AB_NEGATIVO', sexo: 'F' });
-    expect(ficha.kits[0]).toMatchObject({ tipo: 'DIAPANEL', dataPesquisa: '2025-12-10' });
+    expect(ficha.kits[0]).toMatchObject({
+      tipo: 'DIAPANEL',
+      dataPesquisa: '2025-12-10',
+      autocontroleLissCoombs: '0',
+      autocontroleEnzima: null,
+      autocontroleFrio: '1+',
+    });
     expect(ficha.kits[0].resultados[0]).toEqual({
       celula: 1,
       lissCoombs: '0',
