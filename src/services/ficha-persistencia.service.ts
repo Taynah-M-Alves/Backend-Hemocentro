@@ -9,7 +9,7 @@ import type {
   TransfusaoExtraida,
 } from '../types/ficha.types.js';
 import { camposFaltandoNaTransfusao } from '../utils/ficha-sanitize.js';
-import { igual, paraData } from '../utils/formatos.js';
+import { paraData } from '../utils/formatos.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -282,19 +282,18 @@ export class FichaPersistenciaService {
     uf: string | null,
   ): Promise<number | null> {
     if (!nomeCidade || !uf) return null;
-    const cidade = await db.cidade.findFirst({
-      where: { nomeCidade: igual(nomeCidade), estados: { uf } },
-      select: { id: true },
-    });
+    // Sem diferenciar maiúsculas nem acentos: a IA pode ler "Cuiaba" no lugar de "Cuiabá"
+    const [cidade] = await db.$queryRaw<{ id: number }[]>`
+      SELECT c.id FROM cidade c JOIN estados e ON e.id = c.estado_id
+      WHERE unaccent(lower(c.nome_cidade)) = unaccent(lower(${nomeCidade})) AND e.uf = ${uf}
+      LIMIT 1`;
     return cidade?.id ?? null;
   }
 
   private async idColaborador(db: Tx, nome: string | null): Promise<number | null> {
     if (!nome) return null;
-    const colaborador = await db.colaborador.findFirst({
-      where: { nome: igual(nome) },
-      select: { id: true },
-    });
+    const [colaborador] = await db.$queryRaw<{ id: number }[]>`
+      SELECT id FROM colaborador WHERE unaccent(lower(nome)) = unaccent(lower(${nome})) LIMIT 1`;
     return colaborador?.id ?? null;
   }
 }

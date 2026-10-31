@@ -1,4 +1,4 @@
-// Conversões usadas pelas rotas: códigos de exibição, datas e buscas no Prisma.
+// Conversões usadas pelas rotas: códigos de exibição e datas.
 
 /** Lote DEM-012, ficha FIC-0320, evento EVT-0094 (prefixo + id). */
 export const codigoLote = (id: number) => `DEM-${String(id).padStart(3, '0')}`;
