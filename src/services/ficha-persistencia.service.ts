@@ -25,10 +25,10 @@ type PacienteIdentificado = PacienteExtraido & {
   dataNascimento: string;
 };
 
-/** Cidade ou colaborador citado na ficha; `campo` é o caminho usado no PATCH da revisão. */
+/** Cidade ou colaborador citado na ficha; `rotulo` diz o campo em texto para quem revisa. */
 type Referencia =
-  | { tipo: 'cidade'; campo: string; nome: string; uf: string | null }
-  | { tipo: 'colaborador'; campo: string; nome: string };
+  | { tipo: 'cidade'; rotulo: string; nome: string; uf: string | null }
+  | { tipo: 'colaborador'; rotulo: string; nome: string };
 
 /**
  * Grava nas tabelas clínicas o que foi revisado numa ficha (POST /api/fichas/:id/aprovar).
@@ -53,14 +53,12 @@ export class FichaPersistenciaService {
       if (jaEstavam.has(chave(r))) continue;
       if (r.tipo === 'colaborador') {
         if (!(await this.idColaborador(db, r.nome))) {
-          erros.push(
-            `"${r.campo}": colaborador "${r.nome}" não está cadastrado (cadastre em POST /api/colaboradores ou corrija o nome).`,
-          );
+          erros.push(`${r.rotulo}: "${r.nome}" não tem cadastro. Cadastre ou corrija o nome.`);
         }
       } else if (!r.uf) {
-        erros.push(`"${r.campo}": informe a UF da cidade "${r.nome}".`);
+        erros.push(`${r.rotulo}: informe a UF de "${r.nome}".`);
       } else if (!(await this.idCidade(db, r.nome, r.uf))) {
-        erros.push(`"${r.campo}": cidade "${r.nome} / ${r.uf}" não está cadastrada.`);
+        erros.push(`${r.rotulo}: "${r.nome} / ${r.uf}" não tem cadastro. Cadastre ou corrija o nome.`);
       }
     }
     return erros;
@@ -300,17 +298,17 @@ export class FichaPersistenciaService {
 
 /** Cidades (com a UF) e colaboradores citados na ficha. */
 function referencias(f: FichaExtraida): Referencia[] {
-  const cidade = (campo: string, nome: string | null, uf: string | null): Referencia[] =>
-    nome ? [{ tipo: 'cidade', campo, nome, uf }] : [];
-  const colaborador = (campo: string, nome: string | null): Referencia[] =>
-    nome ? [{ tipo: 'colaborador', campo, nome }] : [];
+  const cidade = (rotulo: string, nome: string | null, uf: string | null): Referencia[] =>
+    nome ? [{ tipo: 'cidade', rotulo, nome, uf }] : [];
+  const colaborador = (rotulo: string, nome: string | null): Referencia[] =>
+    nome ? [{ tipo: 'colaborador', rotulo, nome }] : [];
   return [
-    ...cidade('paciente.municipio', f.paciente.municipio, f.paciente.ufMunicipio),
+    ...cidade('Município do paciente', f.paciente.municipio, f.paciente.ufMunicipio),
     ...f.transfusoes.flatMap((t, i) => [
-      ...cidade(`transfusoes[${i}].cidadeDestino`, t.cidadeDestino, t.ufDestino),
-      ...colaborador(`transfusoes[${i}].responsavelLiberacao`, t.responsavelLiberacao),
+      ...cidade(`Cidade de destino da ${i + 1}ª transfusão`, t.cidadeDestino, t.ufDestino),
+      ...colaborador(`Responsável pela liberação da ${i + 1}ª transfusão`, t.responsavelLiberacao),
     ]),
-    ...f.pesquisas.flatMap((p, i) => colaborador(`pesquisas[${i}].responsavel`, p.responsavel)),
+    ...f.pesquisas.flatMap((p, i) => colaborador(`Responsável pela ${i + 1}ª pesquisa`, p.responsavel)),
   ];
 }
 

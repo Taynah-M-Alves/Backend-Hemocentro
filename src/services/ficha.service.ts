@@ -352,9 +352,13 @@ export class FichaService {
     if (!dto.pacienteId && prontuario) {
       const existente = await this.prisma.paciente.findUnique({ where: { prontuario } });
       if (existente) {
-        throw new ConflictException(
-          `Já existe o paciente ${existente.nome} com o prontuário ${prontuario}. Envie "pacienteId": "${existente.id}" para ligar a ficha a ele.`,
-        );
+        // pacienteId fora do texto: a tela usa para ligar a ficha, quem revisa só lê a mensagem
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'Conflict',
+          message: `O prontuário ${prontuario} já é do paciente ${existente.nome}. Ligue a ficha a esse paciente ou corrija o prontuário.`,
+          pacienteId: existente.id,
+        });
       }
     }
 
