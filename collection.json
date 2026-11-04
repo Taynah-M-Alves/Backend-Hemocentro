@@ -609,7 +609,7 @@
                 "dados"
               ]
             },
-            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO. Cidade (com a UF) e colaborador novos precisam já estar cadastrados (GET /cidades, GET /colaboradores); senão 400 dizendo o campo. Valores que a IA leu e não foram alterados não travam o salvar.",
+            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO. Cidade (com a UF) e colaborador novos precisam já estar cadastrados (GET /cidades, GET /colaboradores); senão 400 com uma mensagem legível por campo (ex.: Responsável pela liberação da 3ª transfusão: \"Eliana\" não tem cadastro. Cadastre ou corrija o nome.). Valores que a IA leu e não foram alterados não travam o salvar.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    },\n    {\n      \"campo\": \"kits[0].resultados[0].frio\",\n      \"valor\": \"1+\",\n      \"pagina\": 2\n    },\n    {\n      \"campo\": \"kits[0].autocontroleEnzima\",\n      \"valor\": \"0\",\n      \"pagina\": 2\n    }\n  ]\n}",
@@ -723,7 +723,7 @@
                 "aprovar"
               ]
             },
-            "description": "Grava paciente, transfusões, pesquisas e kits numa transação. Body {} cria paciente novo; { \"pacienteId\": \"...\" } liga a um paciente existente. 422 sem nome ou nascimento, ou com cidade/colaborador que não está cadastrado (cidades e colaboradores não são mais criados na aprovação); 409 se o prontuário já for de outro paciente.",
+            "description": "Grava paciente, transfusões, pesquisas e kits numa transação. Body {} cria paciente novo; { \"pacienteId\": \"...\" } liga a um paciente existente. 422 sem nome ou nascimento, ou com cidade/colaborador que não está cadastrado (cidades e colaboradores não são mais criados na aprovação); 409 se o prontuário já for de outro paciente (o id dele vem em \"pacienteId\", fora da mensagem).",
             "body": {
               "mode": "raw",
               "raw": "{}",
