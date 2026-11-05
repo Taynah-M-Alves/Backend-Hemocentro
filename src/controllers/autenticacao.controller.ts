@@ -22,6 +22,7 @@ import {
 } from '../dtos/autenticacao.dto.js';
 import { AutenticacaoService } from '../services/autenticacao.service.js';
 import { SessaoService, tokenDoCookie } from '../services/sessao.service.js';
+import { RotaPublica } from '../decorators/rota-publica.decorator.js';
 
 @Controller('auth')
 export class AutenticacaoController {
@@ -30,6 +31,7 @@ export class AutenticacaoController {
     private readonly sessoes: SessaoService,
   ) {}
 
+  @RotaPublica()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
@@ -129,6 +131,7 @@ export class AutenticacaoController {
     });
   }
 
+  @RotaPublica()
   @Post('esqueci-senha')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
@@ -147,6 +150,7 @@ export class AutenticacaoController {
     };
   }
 
+  @RotaPublica()
   @Post('redefinir-senha')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')

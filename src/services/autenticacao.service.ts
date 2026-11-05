@@ -29,12 +29,10 @@ function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: s
     <tr>
       <td align="center">
         <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 560px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);">
-          
           <!-- Top Bar Decorativa -->
           <tr>
             <td style="height: 6px; background-color: #b91c1c;"></td>
           </tr>
-
           <!-- Cabeçalho -->
           <tr>
             <td style="padding: 36px 40px 24px; text-align: center;">
@@ -45,25 +43,21 @@ function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: s
               <p style="margin: 0; font-size: 14px; color: #64748b; font-weight: 500;">Sistema de Gestão de Sangue e Hemocomponentes</p>
             </td>
           </tr>
-
           <!-- Linha Divisória -->
           <tr>
             <td style="padding: 0 40px;">
               <div style="height: 1px; background-color: #f1f5f9;"></div>
             </td>
           </tr>
-
           <!-- Corpo Principal -->
           <tr>
             <td style="padding: 32px 40px 24px;">
               <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #1e293b;">
                 Olá, ${nome}
               </h2>
-              
               <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #475569;">
                 Recebemos uma solicitação para redefinir a senha de acesso à sua conta no sistema do Hemocentro. Para continuar e cadastrar uma nova senha, clique no botão abaixo:
               </p>
-
               <!-- Botão CTA -->
               <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto 28px auto;">
                 <tr>
@@ -74,7 +68,6 @@ function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: s
                   </td>
                 </tr>
               </table>
-
               <!-- Caixa Informativa de Expiração -->
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; margin-bottom: 28px;">
                 <tr>
@@ -85,7 +78,6 @@ function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: s
                   </td>
                 </tr>
               </table>
-
               <!-- Fallback Link Direto -->
               <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;">
                 Se o botão acima não funcionar, copie e cole o endereço abaixo no seu navegador:

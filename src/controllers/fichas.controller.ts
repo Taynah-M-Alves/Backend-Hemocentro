@@ -21,9 +21,11 @@ import {
   STATUS_REVISAO,
 } from '../dtos/ficha.dto.js';
 import { FichaService } from '../services/ficha.service.js';
+import { PermissoesPermitidas } from '../decorators/permissoes-permitidas.decorator.js';
 
 /** Telas Fila de revisão e Revisar ficha. As ações exigem o header X-Usuario-Id. */
 @Controller('fichas')
+@PermissoesPermitidas('REVISAR_FICHAS')
 export class FichasController {
   constructor(private readonly fichas: FichaService) {}
 

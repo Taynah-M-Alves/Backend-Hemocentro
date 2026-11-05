@@ -1,9 +1,7 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -11,24 +9,19 @@ import {
   Patch,
   Post,
   Query,
-  Req,
+  UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
-import {
-  lerAlterarUsuarioDto,
-  lerCriarUsuarioDto,
-} from '../dtos/usuario.dto.js';
-import { SessaoService, tokenDoCookie } from '../services/sessao.service.js';
+import { lerAlterarUsuarioDto } from '../dtos/usuario.dto.js';
+import { lerCadastrarFuncionarioDto } from '../dtos/cadastro-funcionario.dto.js';
 import { UsuarioService } from '../services/usuario.service.js';
+import { SomenteGestorGuard } from '../guards/somente-gestor.guard.js';
+import { UsuarioId } from '../decorators/usuario-id.decorator.js';
 
-// Sem tela no design. Não exige X-Usuario-Id porque é por aqui que o primeiro usuário
-// é criado (provisório até existir login).
+/** Administração de contas de acesso, exclusiva do gestor. */
 @Controller('usuarios')
+@UseGuards(SomenteGestorGuard)
 export class UsuariosController {
-  constructor(
-    private readonly usuarios: UsuarioService,
-    private readonly sessoes: SessaoService,
-  ) {}
+  constructor(private readonly usuarios: UsuarioService) {}
 
   /** GET /api/usuarios?ativo=true */
   @Get()
@@ -36,10 +29,10 @@ export class UsuariosController {
     return this.usuarios.listar(ativo !== 'false');
   }
 
-  /** POST /api/usuarios — 201; 409 se o email já existir */
+  /** POST /api/usuarios — cria funcionário sem senha definida. */
   @Post()
   criar(@Body() body: unknown) {
-    return this.usuarios.criar(lerCriarUsuarioDto(body));
+    return this.usuarios.criar(lerCadastrarFuncionarioDto(body));
   }
 
   /** PATCH /api/usuarios/:id — nome e/ou colaboradorId */
@@ -48,35 +41,17 @@ export class UsuariosController {
     return this.usuarios.alterar(id, lerAlterarUsuarioDto(body));
   }
 
-  /** POST /api/usuarios/:id/inativar — só gestor logado (cookie + X-CSRF-Token) */
+  /** POST /api/usuarios/:id/inativar — sessão e CSRF checados pelo guard global */
   @Post(':id/inativar')
   @HttpCode(HttpStatus.OK)
-  async inativar(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() requisicao: Request,
-    @Headers('x-csrf-token') csrf: string | undefined,
-  ) {
-    const gestorId = await this.exigirGestor(requisicao, csrf);
+  inativar(@Param('id', ParseIntPipe) id: number, @UsuarioId() gestorId: number) {
     return this.usuarios.definirAtivo(id, false, gestorId);
   }
 
-  /** POST /api/usuarios/:id/reativar — só gestor logado (cookie + X-CSRF-Token) */
+  /** POST /api/usuarios/:id/reativar — sessão e CSRF checados pelo guard global */
   @Post(':id/reativar')
   @HttpCode(HttpStatus.OK)
-  async reativar(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() requisicao: Request,
-    @Headers('x-csrf-token') csrf: string | undefined,
-  ) {
-    const gestorId = await this.exigirGestor(requisicao, csrf);
+  reativar(@Param('id', ParseIntPipe) id: number, @UsuarioId() gestorId: number) {
     return this.usuarios.definirAtivo(id, true, gestorId);
-  }
-
-  private async exigirGestor(requisicao: Request, csrf: string | undefined) {
-    const { usuario } = await this.sessoes.exigir(tokenDoCookie(requisicao), csrf);
-    if (usuario.perfil !== 'GESTOR') {
-      throw new ForbiddenException('Só gestores podem desativar ou reativar usuários.');
-    }
-    return usuario.id;
   }
 }

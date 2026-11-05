@@ -27,6 +27,10 @@ import { SenhaService } from './services/senha.service.js';
 import { SessaoService } from './services/sessao.service.js';
 import { EmailService } from './services/email.service.js';
 import { AutenticacaoController } from './controllers/autenticacao.controller.js';
+import { APP_GUARD } from '@nestjs/core';
+import { AutenticacaoGuard } from './guards/autenticacao.guard.js';
+import { SomenteGestorGuard } from './guards/somente-gestor.guard.js';
+import { PermissoesGuard } from './guards/permissoes.guard.js';
 
 @Module({
   controllers: [
@@ -60,6 +64,15 @@ import { AutenticacaoController } from './controllers/autenticacao.controller.js
     SenhaService,
     SessaoService,
     EmailService,
+    SomenteGestorGuard,
+    {
+      provide: APP_GUARD,
+      useClass: AutenticacaoGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissoesGuard,
+    },
   ],
 })
 export class AppModule {}

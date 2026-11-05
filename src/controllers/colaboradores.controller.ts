@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { lerCriarColaboradorDto } from '../dtos/colaborador.dto.js';
 import { ColaboradorService } from '../services/colaborador.service.js';
+import { SomenteGestorGuard } from '../guards/somente-gestor.guard.js';
 
 @Controller('colaboradores')
 export class ColaboradoresController {
@@ -13,6 +14,7 @@ export class ColaboradoresController {
   }
 
   /** POST /api/colaboradores — 201 */
+  @UseGuards(SomenteGestorGuard)
   @Post()
   criar(@Body() body: unknown) {
     return this.colaboradores.criar(lerCriarColaboradorDto(body));
