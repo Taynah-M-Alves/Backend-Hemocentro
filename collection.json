@@ -665,10 +665,10 @@
                 "dados"
               ]
             },
-            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO. Cidade (com a UF) e colaborador novos precisam já estar cadastrados (GET /cidades, GET /colaboradores); senão 400 com uma mensagem legível por campo (ex.: Responsável pela liberação da 3ª transfusão: \"Eliana\" não tem cadastro. Cadastre ou corrija o nome.). Valores que a IA leu e não foram alterados não travam o salvar.",
+            "description": "Só o revisor atual, em EM_REVISAO. \"campo\" é o caminho dentro de \"dados\". Numa lista, o índice igual ao tamanho acrescenta um item e valor null remove o item. Cada alteração vira um CAMPO_EDITADO. Cidade (com a UF) e colaborador novos precisam já estar cadastrados (GET /cidades, GET /colaboradores); senão 400 com uma mensagem legível por campo (ex.: Responsável pela liberação da 3ª transfusão: \"Eliana\" não tem cadastro. Cadastre ou corrija o nome.). Valores que a IA leu e não foram alterados não travam o salvar. Anticorpos da pesquisa: edite pesquisas[i].anticorpos (especificidade até 50 caracteres, data AAAA-MM-DD ou DD/MM/AAAA, classe IgG ou IgM; outro valor dá 400). pesquisas[i].especificidade é preenchida a partir da lista (\"Anti-E, Anti-K\"); editar só esse texto refaz a lista, sem data e classe.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    },\n    {\n      \"campo\": \"kits[0].resultados[0].frio\",\n      \"valor\": \"1+\",\n      \"pagina\": 2\n    },\n    {\n      \"campo\": \"kits[0].autocontroleEnzima\",\n      \"valor\": \"0\",\n      \"pagina\": 2\n    }\n  ]\n}",
+              "raw": "{\n  \"alteracoes\": [\n    {\n      \"campo\": \"paciente.nomeMae\",\n      \"valor\": \"Maria Helena Martins\",\n      \"pagina\": 1,\n      \"justificativa\": \"Nome completo legível na segunda linha\"\n    },\n    {\n      \"campo\": \"transfusoes[0].volMl\",\n      \"valor\": 252,\n      \"pagina\": 1\n    },\n    {\n      \"campo\": \"kits[0].resultados[0].frio\",\n      \"valor\": \"1+\",\n      \"pagina\": 2\n    },\n    {\n      \"campo\": \"kits[0].autocontroleEnzima\",\n      \"valor\": \"0\",\n      \"pagina\": 2\n    },\n    {\n      \"campo\": \"pesquisas[0].anticorpos[1]\",\n      \"valor\": { \"especificidade\": \"Anti-K\", \"data\": \"2026-01-10\", \"classe\": \"IgG\" },\n      \"pagina\": 4\n    },\n    {\n      \"campo\": \"pesquisas[0].anticorpos[0].classe\",\n      \"valor\": \"IgM\",\n      \"pagina\": 4\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -928,7 +928,7 @@
                 "ficha-completa"
               ]
             },
-            "description": "Tudo do paciente, cada registro com a ficha e a página de origem. Grava CONSULTA (X-Usuario-Id opcional)."
+            "description": "Tudo do paciente, cada registro com a ficha e a página de origem. Grava CONSULTA (X-Usuario-Id opcional). Cada pesquisa traz anticorpos: [{ especificidade, data, classe: IGG | IGM | null }] e especificidade com os nomes separados por vírgula."
           }
         }
       ]

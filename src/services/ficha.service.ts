@@ -255,13 +255,17 @@ export class FichaService {
     exigirRevisor(ficha, usuarioId);
 
     const original = ficha.dadosExtraidos as unknown as FichaExtraida;
-    let dados = structuredClone(original);
+    let dados = sanitizarFicha(original);
     const eventos: Prisma.EventoAuditoriaCreateManyInput[] = [];
 
     for (const a of dto.alteracoes) {
       const partes = partesDoCaminho(a.campo);
       const anterior = lerCaminho(dados, partes);
       gravarCaminho(dados, partes, a.valor);
+      // Texto da especificidade editado: a lista de anticorpos é refeita a partir dele
+      if (partes[0] === 'pesquisas' && partes[2] === 'especificidade' && partes.length === 3) {
+        gravarCaminho(dados, [...partes.slice(0, 2), 'anticorpos'], null);
+      }
       // Converte para os tipos do banco; valor que não se encaixa no campo vira null
       dados = sanitizarFicha(dados);
 
@@ -272,6 +276,9 @@ export class FichaService {
           `Valor inválido para "${a.campo}": ${JSON.stringify(a.valor)}.`,
         );
       }
+      // Item inteiro (ex.: lista de anticorpos): recusa se algum valor enviado virou null
+      const recusado = ehItemInteiro ? valorRecusado(a.valor, gravado, a.campo) : null;
+      if (recusado) throw new BadRequestException(mensagemRecusado(recusado.campo, recusado.valor));
       eventos.push({
         tipo: 'CAMPO_EDITADO',
         ...this.alvo(ficha),
@@ -361,7 +368,7 @@ export class FichaService {
     const ficha = await this.carregar(id);
     exigirRevisor(ficha, usuarioId);
 
-    const dados = ficha.dadosExtraidos as unknown as FichaExtraida;
+    const dados = sanitizarFicha(ficha.dadosExtraidos);
     try {
       exigirIdentificacao(dados);
     } catch (err) {
@@ -451,7 +458,7 @@ export class FichaService {
   }
 
   private formatar(f: FichaComDetalhe) {
-    const dados = f.dadosExtraidos as FichaExtraida | null;
+    const dados = f.dadosExtraidos ? sanitizarFicha(f.dadosExtraidos) : null;
     const s = f.pacienteSugerido;
     return {
       id: f.id,
@@ -485,6 +492,35 @@ export class FichaService {
 }
 
 // ── Regras ────────────────────────────────────────────────────────────────────
+
+/** "pesquisas[0].anticorpos[1].data" → "A data do 2º anticorpo da 1ª pesquisa (...) é inválida..." */
+function mensagemRecusado(campo: string, valor: unknown): string {
+  const anticorpo = /^pesquisas\[(\d+)\]\.anticorpos\[(\d+)\]\.data$/.exec(campo);
+  if (!anticorpo) return `Valor inválido para "${campo}": ${JSON.stringify(valor)}.`;
+  const data = String(valor).replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1');
+  const [, pesquisa, item] = anticorpo;
+  return (
+    `A data do ${Number(item) + 1}º anticorpo da ${Number(pesquisa) + 1}ª pesquisa ("${data}") é inválida. ` +
+    `Selecione uma data até ${new Date().getFullYear() + 1}.`
+  );
+}
+
+/** Primeiro valor preenchido de `enviado` que o sanitize trocou por null em `gravado`. */
+function valorRecusado(
+  enviado: unknown,
+  gravado: unknown,
+  campo: string,
+): { campo: string; valor: unknown } | null {
+  if (enviado === null || enviado === '') return null;
+  if (typeof enviado !== 'object') return gravado === null ? { campo, valor: enviado } : null;
+  for (const [chave, valor] of Object.entries(enviado)) {
+    const sub = Array.isArray(enviado) ? `${campo}[${chave}]` : `${campo}.${chave}`;
+    const filho = (gravado as Record<string, unknown> | null | undefined)?.[chave];
+    const recusado = valorRecusado(valor, filho, sub);
+    if (recusado) return recusado;
+  }
+  return null;
+}
 
 /** Calculados a partir da leitura; ordenar=atencao coloca primeiro quem tem alerta. */
 function alertas(dados: FichaExtraida | null, pacienteSugeridoId: string | null): Alerta[] {

@@ -205,7 +205,7 @@ export class FichaPersistenciaService {
       return false;
     }
 
-    const { dataPesquisa, responsavel, fenotipagem, ...resultados } = p;
+    const { dataPesquisa, responsavel, fenotipagem, anticorpos, ...resultados } = p;
     // Mesmo paciente + mesma data + mesmos resultados = documento repetido
     const chave = {
       pacienteId: origem.pacienteId,
@@ -229,6 +229,9 @@ export class FichaPersistenciaService {
         dataPesquisa: chave.dataPesquisa,
         responsavelPesquisaId: await this.idColaborador(tx, responsavel),
         fenotipagem: { create: fenotipagem },
+        anticorpos: {
+          create: anticorpos.map((a) => ({ ...a, data: a.data ? paraData(a.data) : null })),
+        },
       },
     });
     return true;

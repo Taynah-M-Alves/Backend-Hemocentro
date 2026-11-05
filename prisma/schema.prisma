@@ -19,6 +19,12 @@ enum ResultadoTeste {
   NEGATIVO
 }
 
+// Classe do anticorpo identificado na pesquisa
+enum ClasseAnticorpo {
+  IGG
+  IGM
+}
+
 enum Raca {
   BRANCO   @map("Branco")
   PRETO    @map("Preto")
@@ -205,7 +211,7 @@ model PesquisaAnticorpos {
   tad            ResultadoTeste? // Teste da antiglobulina humana
   autocontrole   ResultadoTeste?
   dcScreening    ResultadoTeste? @map("dc_screening") // Antiglobulina monoespecífico DC-Screening I
-  especificidade String?         @db.VarChar(255) // Identificação de anticorpos irregulares
+  especificidade String?         @db.VarChar(255) // Nomes de `anticorpos` separados por vírgula ("Anti-E, Anti-K")
   interpretacao  String?         @db.VarChar(255)
   observacao     String?         @db.VarChar(255)
   amostra        String?         @db.VarChar(50) // ex.: EDTA
@@ -219,6 +225,7 @@ model PesquisaAnticorpos {
   responsavelPesquisa   Colaborador? @relation("ResponsavelPesquisa", fields: [responsavelPesquisaId], references: [id])
 
   fenotipagem FenotipagemAntigeno[]
+  anticorpos  AnticorpoIdentificado[]
 
   fichaDigitalizadaId Int?               @map("ficha_digitalizada_id")
   fichaDigitalizada   FichaDigitalizada? @relation(fields: [fichaDigitalizadaId], references: [id])
@@ -239,6 +246,19 @@ model FenotipagemAntigeno {
 
   @@unique([pesquisaId, antigeno])
   @@map("fenotipagem_antigeno")
+}
+
+// Identificação de anticorpos irregulares: um anticorpo por linha
+model AnticorpoIdentificado {
+  id             Int              @id @default(autoincrement())
+  pesquisaId     Int              @map("pesquisa_id")
+  especificidade String           @db.VarChar(50) // ex.: Anti-E
+  data           DateTime?        @db.Date
+  classe         ClasseAnticorpo?
+
+  pesquisa PesquisaAnticorpos @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
+
+  @@map("anticorpo_identificado")
 }
 
 /// Folhas Bio-Rad ID-DiaCell I-II e ID-DiaPanel (só os campos manuscritos; a tabela de antígenos é impressa)

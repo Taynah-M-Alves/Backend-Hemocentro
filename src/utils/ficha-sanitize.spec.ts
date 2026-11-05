@@ -67,6 +67,35 @@ describe('sanitizarFicha', () => {
     });
   });
 
+  it('guarda cada anticorpo da pesquisa com data e classe', () => {
+    const [doTexto] = sanitizarFicha({
+      pesquisas: [{ especificidade: 'Anti-E, anti-K e Anti-c' }],
+    }).pesquisas;
+    expect(doTexto.anticorpos).toEqual([
+      { especificidade: 'Anti-E', data: null, classe: null },
+      { especificidade: 'anti-K', data: null, classe: null },
+      { especificidade: 'Anti-c', data: null, classe: null },
+    ]);
+
+    const [daLista] = sanitizarFicha({
+      pesquisas: [
+        {
+          especificidade: 'texto antigo',
+          anticorpos: [
+            { especificidade: 'Anti-D', data: '10/01/2026', classe: 'IgG' },
+            { especificidade: ' ', classe: 'IgM' }, // sem nome: descartado
+            { especificidade: 'Anti-K', classe: 'IgA' }, // classe inválida: null
+          ],
+        },
+      ],
+    }).pesquisas;
+    expect(daLista.anticorpos).toEqual([
+      { especificidade: 'Anti-D', data: '2026-01-10', classe: 'IGG' },
+      { especificidade: 'Anti-K', data: null, classe: null },
+    ]);
+    expect(daLista.especificidade).toBe('Anti-D, Anti-K'); // derivada da lista
+  });
+
   it('aceita o nome do enum, como o PATCH da revisão envia', () => {
     const ficha = sanitizarFicha({
       paciente: { raca: '3', aboRh: 'AB_NEGATIVO', sexo: 'Feminino' },

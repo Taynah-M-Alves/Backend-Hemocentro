@@ -1,5 +1,6 @@
 import type {
   Abo,
+  ClasseAnticorpo,
   GrupoAbo,
   Raca,
   ResultadoTeste,
@@ -61,6 +62,7 @@ export interface PesquisaExtraida {
   tad: ResultadoTeste | null;
   autocontrole: ResultadoTeste | null;
   dcScreening: ResultadoTeste | null;
+  /** Nomes de `anticorpos` separados por vírgula. Editar só o texto refaz a lista. */
   especificidade: string | null;
   interpretacao: string | null;
   observacao: string | null;
@@ -68,7 +70,15 @@ export interface PesquisaExtraida {
   metodologia: string | null;
   responsavel: string | null;
   fenotipagem: { antigeno: string; resultado: string }[];
+  anticorpos: AnticorpoExtraido[];
   pagina: number | null;
+}
+
+/** Um anticorpo identificado na pesquisa. */
+export interface AnticorpoExtraido {
+  especificidade: string;
+  data: string | null;
+  classe: ClasseAnticorpo | null;
 }
 
 /** Folha Bio-Rad ID-DiaCell I-II ou ID-DiaPanel. */

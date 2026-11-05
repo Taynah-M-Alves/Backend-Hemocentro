@@ -17,7 +17,7 @@ import {
 } from '../utils/ficha-sanitize.js';
 
 /** Tempo máximo esperando uma IA antes de desistir e tentar a próxima. */
-const TIMEOUT_MS = 500_000;
+const TIMEOUT_MS = 900_000;
 /**
  * Inclui o "raciocínio" do modelo, que gasta boa parte do limite. Com 8000 o Gemini cortava o
  * JSON no meio depois que o prompt passou a pedir kits e fenotipagem.
@@ -27,7 +27,8 @@ const TEMPERATURA = 0.1;
 
 /** Modelo usado quando o *_MODEL correspondente não está no .env. Todos precisam ler imagens. */
 const MODELO_PADRAO: Record<ProvedorIa, string> = {
-  gemini: 'gemini-3.7-flash',
+  // Gemini aceita uma lista: o seguinte só é usado quando o anterior está sobrecarregado (503)
+  gemini: 'gemini-3.8-flash,gemini-3.7-flash,gemini-2.5-flash',
   groq: 'meta-llama/llama-4-scout-17b-16e-instruct',
   openrouter: 'google/gemini-3.7-flash',
   openai: 'gpt-4.1',
@@ -81,13 +82,16 @@ export class AiExtractionService {
 
     const modelo = (id: ProvedorIa) =>
       env[`${id.toUpperCase()}_MODEL`] || MODELO_PADRAO[id];
+    const modelosGemini = modelo('gemini')
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean);
 
     this.provedores = [
       {
         id: 'gemini',
         nome: 'Gemini',
-        extrair:
-          gemini && ((p) => this.chamarGemini(gemini, modelo('gemini'), p)),
+        extrair: gemini && ((p) => this.chamarGemini(gemini, modelosGemini, p)),
       },
       {
         id: 'groq',
@@ -172,30 +176,43 @@ export class AiExtractionService {
 
   // ── Provedores ────────────────────────────────────────────────────────────
 
+  /** Tenta os modelos em ordem; só passa ao seguinte quando o atual responde 503 (sobrecarga). */
   private async chamarGemini(
     cliente: GoogleGenerativeAI,
-    modelo: string,
+    modelos: string[],
     paginas: PaginaImagem[],
-  ) {
-    const model = cliente.getGenerativeModel(
-      {
-        model: modelo,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: TEMPERATURA,
-          maxOutputTokens: MAX_TOKENS,
-        },
-      },
-      { timeout: TIMEOUT_MS },
-    );
-
-    const result = await model.generateContent([
+  ): Promise<FichaExtraida> {
+    const conteudo = [
       { text: PROMPT_EXTRACAO_FICHA },
       ...paginas.map((p) => ({
         inlineData: { mimeType: 'image/jpeg', data: p.jpeg.toString('base64') },
       })),
-    ]);
-    return this.parseJson(result.response.text());
+    ];
+
+    for (const [i, modelo] of modelos.entries()) {
+      const model = cliente.getGenerativeModel(
+        {
+          model: modelo,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: TEMPERATURA,
+            maxOutputTokens: MAX_TOKENS,
+          },
+        },
+        { timeout: TIMEOUT_MS },
+      );
+      try {
+        const result = await model.generateContent(conteudo);
+        return this.parseJson(result.response.text());
+      } catch (err) {
+        const proximo = modelos[i + 1];
+        if (!proximo || (err as { status?: number }).status !== 503) throw err;
+        this.logger.warn(
+          `Gemini ${modelo} sobrecarregado (503) — tentando ${proximo}…`,
+        );
+      }
+    }
+    throw new Error('GEMINI_MODEL sem nenhum modelo.');
   }
 
   /** Groq aceita no máximo 5 imagens por pedido; fichas maiores caem para a próxima IA. */

@@ -1,5 +1,6 @@
 import {
   Abo,
+  ClasseAnticorpo,
   GrupoAbo,
   Raca,
   ResultadoTeste,
@@ -8,6 +9,7 @@ import {
   TipoKitId,
 } from '../generated/prisma/enums.js';
 import type {
+  AnticorpoExtraido,
   FichaExtraida,
   KitExtraido,
   PacienteExtraido,
@@ -131,6 +133,14 @@ function sanitizarTransfusao(t: Obj): TransfusaoExtraida {
 }
 
 function sanitizarPesquisa(p: Obj): PesquisaExtraida {
+  // A lista manda; sem ela (rascunho antigo ou PATCH só do texto), sai do texto da especificidade
+  const anticorpos = Array.isArray(p.anticorpos)
+    ? lista(p.anticorpos).flatMap(anticorpo)
+    : nomesDeAnticorpos(p.especificidade).map((especificidade) => ({
+        especificidade,
+        data: null,
+        classe: null,
+      }));
   return {
     dataPesquisa: dataIso(p.dataPesquisa ?? p.data),
     gs: grupoAbo(p.gs),
@@ -140,7 +150,7 @@ function sanitizarPesquisa(p: Obj): PesquisaExtraida {
     tad: resultadoTeste(p.tad),
     autocontrole: resultadoTeste(p.autocontrole),
     dcScreening: resultadoTeste(p.dcScreening),
-    especificidade: texto(p.especificidade),
+    especificidade: texto(anticorpos.map((a) => a.especificidade).join(', ')),
     interpretacao: texto(p.interpretacao),
     observacao: texto(p.observacao),
     amostra: texto(p.amostra, 50),
@@ -151,8 +161,21 @@ function sanitizarPesquisa(p: Obj): PesquisaExtraida {
       const resultado = texto(f.resultado, 5);
       return antigeno && resultado ? [{ antigeno, resultado }] : [];
     }),
+    anticorpos,
     pagina: inteiro(p.pagina),
   };
+}
+
+function anticorpo(a: Obj): AnticorpoExtraido[] {
+  const especificidade = texto(a.especificidade, 50);
+  return especificidade
+    ? [{ especificidade, data: dataIso(a.data), classe: classeAnticorpo(a.classe) }]
+    : [];
+}
+
+/** "Anti-E, Anti-K" → ["Anti-E", "Anti-K"]. Também separa por ; / + e " e ". */
+function nomesDeAnticorpos(v: unknown): string[] {
+  return (texto(v) ?? '').split(/\s*[,;/+]\s*|\s+e\s+/i).flatMap((n) => texto(n, 50) ?? []);
 }
 
 function sanitizarKit(k: Obj): KitExtraido {
@@ -259,6 +282,11 @@ function resultadoTeste(v: unknown): ResultadoTeste | null {
   if (valor.startsWith('NEG')) return ResultadoTeste.NEGATIVO;
   if (valor === 'NR' || /^NAO.?REALIZ/.test(valor)) return ResultadoTeste.NAO_REALIZADO;
   return null;
+}
+
+function classeAnticorpo(v: unknown): ClasseAnticorpo | null {
+  const valor = normalizado(v);
+  return valor === 'IGG' || valor === 'IGM' ? ClasseAnticorpo[valor] : null;
 }
 
 function sexo(v: unknown): Sexo | null {

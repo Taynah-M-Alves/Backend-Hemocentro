@@ -158,6 +158,10 @@ export class PacienteService {
           include: {
             ...origem,
             fenotipagem: { select: { antigeno: true, resultado: true } },
+            anticorpos: {
+              orderBy: { id: 'asc' },
+              select: { especificidade: true, data: true, classe: true },
+            },
             responsavelPesquisa: { select: { nome: true } },
           },
         },
@@ -242,6 +246,7 @@ export class PacienteService {
         }) => ({
           ...r,
           dataPesquisa: dataSemHora(r.dataPesquisa),
+          anticorpos: r.anticorpos.map((a) => ({ ...a, data: dataSemHora(a.data) })),
           responsavel: responsavelPesquisa?.nome ?? null,
           origem: deOnde({ fichaDigitalizada, pagina: r.pagina }),
         }),
