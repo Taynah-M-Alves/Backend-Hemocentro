@@ -31,10 +31,10 @@
                 "usuarios"
               ]
             },
-            "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com perfil COLABORADOR (acesso a tudo, menos criar, desativar e reativar usuário) e uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
+            "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com o perfil escolhido no campo \"perfil\": GESTOR (acesso a tudo) ou COLABORADOR (acesso a tudo, menos as rotas de /api/usuarios); se omitido, vale COLABORADOR. Também recebe uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política, o perfil for inválido ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"colaboradorId\": null\n}",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"perfil\": \"COLABORADOR\",\n  \"colaboradorId\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"

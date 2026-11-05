@@ -7,7 +7,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
   const gerarHash = vi.fn().mockResolvedValue('hash-argon2');
   const senhas = { gerarHash } as unknown as SenhaService;
 
-  it('fixa perfil, estado inicial, guarda só o hash e exige troca no primeiro acesso', async () => {
+  it('usa o perfil do DTO, fixa estado inicial, guarda só o hash e exige troca no primeiro acesso', async () => {
     const criar = vi.fn().mockResolvedValue({ id: 2 });
 
     const prisma = {
@@ -22,7 +22,6 @@ describe('UsuarioService — cadastro de funcionário', () => {
     const dados = {
       nome: 'Funcionária de teste',
       email: 'funcionaria@example.invalid',
-      permissoes: ['REVISAR_FICHAS'],
       perfil: 'GESTOR',
       ativo: false,
       senhaHash: 'hash-injetado',
@@ -38,7 +37,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
           nome: 'Funcionária de teste',
           email: 'funcionaria@example.invalid',
           colaboradorId: undefined,
-          perfil: 'COLABORADOR',
+          perfil: 'GESTOR',
           ativo: true,
           senhaHash: 'hash-argon2',
           trocarSenhaNoProximoLogin: true,
@@ -73,6 +72,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
         email: 'funcionaria@example.invalid',
         colaboradorId: 999,
         senha: 'provisoria-123',
+        perfil: 'COLABORADOR',
       }),
     ).rejects.toThrow('Colaborador 999 não está cadastrado.');
 

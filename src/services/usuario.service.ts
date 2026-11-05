@@ -53,7 +53,7 @@ export class UsuarioService {
         nome: dto.nome,
         email: dto.email,
         colaboradorId: dto.colaboradorId,
-        perfil: PerfilUsuario.COLABORADOR,
+        perfil: dto.perfil,
         ativo: true,
         senhaHash: await this.senhas.gerarHash(dto.senha),
         trocarSenhaNoProximoLogin: true,

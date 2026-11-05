@@ -35,7 +35,18 @@ describe('lerCadastrarFuncionarioDto', () => {
     ).toThrow('A senha deve ter entre 8 e 64 caracteres.');
   });
 
-  it.each(['perfil', 'permissoes', 'senhaHash', 'ativo', 'trocarSenhaNoProximoLogin'])(
+  it('perfil padrão é COLABORADOR e aceita GESTOR', () => {
+    expect(lerCadastrarFuncionarioDto(cadastroValido()).perfil).toBe('COLABORADOR');
+    expect(lerCadastrarFuncionarioDto({ ...cadastroValido(), perfil: 'GESTOR' }).perfil).toBe('GESTOR');
+  });
+
+  it('recusa perfil inválido', () => {
+    expect(() => lerCadastrarFuncionarioDto({ ...cadastroValido(), perfil: 'ADMIN' })).toThrow(
+      '"perfil" precisa ser GESTOR ou COLABORADOR.',
+    );
+  });
+
+  it.each(['permissoes', 'senhaHash', 'ativo', 'trocarSenhaNoProximoLogin'])(
     'rejeita o campo não permitido: %s',
     (campo) => {
       expect(() =>

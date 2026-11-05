@@ -105,7 +105,19 @@ describe('Cadastro pelo gestor (e2e)', () => {
     expect(criar).toHaveBeenCalledWith({
       ...cadastro,
       colaboradorId: undefined,
+      perfil: 'COLABORADOR',
     });
+  });
+
+  it('permite que gestor cadastre outro gestor (201)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/usuarios')
+      .set('Cookie', `hemocentro_sessao=${TOKEN_GESTOR}`)
+      .set('X-CSRF-Token', CSRF)
+      .send({ ...cadastro, perfil: 'GESTOR' })
+      .expect(201);
+
+    expect(criar).toHaveBeenCalledWith({ ...cadastro, colaboradorId: undefined, perfil: 'GESTOR' });
   });
 
   it('recusa cadastro sem senha (400)', async () => {
@@ -200,11 +212,11 @@ describe('Cadastro pelo gestor (e2e)', () => {
     expect(criar).not.toHaveBeenCalled();
   });
 
-  it('permite listagem de contas por colaborador (200)', () =>
+  it('recusa listagem de contas por colaborador (403)', () =>
     request(app.getHttpServer())
       .get('/api/usuarios')
       .set('Cookie', `hemocentro_sessao=${TOKEN_COLABORADOR}`)
-      .expect(200));
+      .expect(403));
 
   it.each(['inativar', 'reativar'])('recusa %s usuário por colaborador (403)', async (acao) => {
     await request(app.getHttpServer())
@@ -226,12 +238,12 @@ describe('Cadastro pelo gestor (e2e)', () => {
     expect(criar).not.toHaveBeenCalled();
   });
 
-  it('recusa tentativa de escolher o perfil GESTOR (400)', async () => {
+  it('recusa perfil inválido (400)', async () => {
     await request(app.getHttpServer())
       .post('/api/usuarios')
       .set('Cookie', `hemocentro_sessao=${TOKEN_GESTOR}`)
       .set('X-CSRF-Token', CSRF)
-      .send({ ...cadastro, perfil: 'GESTOR' })
+      .send({ ...cadastro, perfil: 'ADMIN' })
       .expect(400);
 
     expect(criar).not.toHaveBeenCalled();

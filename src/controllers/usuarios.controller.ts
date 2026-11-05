@@ -17,7 +17,7 @@ import { UsuarioService } from '../services/usuario.service.js';
 import { SomenteGestorGuard } from '../guards/somente-gestor.guard.js';
 import { UsuarioId } from '../decorators/usuario-id.decorator.js';
 
-/** Contas de acesso. Criar, inativar e reativar são exclusivos do gestor. */
+/** Contas de acesso. Todas as rotas são exclusivas do gestor. */
 @Controller('usuarios')
 export class UsuariosController {
   constructor(private readonly usuarios: UsuarioService) {}
