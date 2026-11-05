@@ -130,7 +130,7 @@ model Cidade {
   id                   Int                  @id @default(autoincrement())
   nomeCidade           String               @map("nome_cidade") @db.VarChar(120)
   estado_id            Int
-  code                 Int
+  code                 Int                  @unique // código do município no IBGE
   uf                   String?              @db.Char(2) // cópia da UF do estado
   estados              estados              @relation(fields: [estado_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cidade_estado")
   fichasTransfusionais FichaTransfusional[]
@@ -142,9 +142,9 @@ model Cidade {
 
 model estados {
   id          Int      @id @default(autoincrement())
-  uf_code     Int
+  uf_code     Int      @unique // código da UF no IBGE
   estado_nome String   @db.VarChar(50)
-  uf          String   @db.Char(2)
+  uf          String   @unique @db.Char(2)
   cidade      Cidade[]
 }
 
