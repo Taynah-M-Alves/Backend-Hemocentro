@@ -33,6 +33,9 @@ export class PrismaErroFilter implements ExceptionFilter {
         `Já existe um registro com o mesmo valor${campos ? ` em: ${campos}` : ''}.`,
       );
     }
+    if (err.code === 'P2034') {
+      return new ConflictException('Outra alteração foi feita ao mesmo tempo. Tente de novo.');
+    }
     if (err.code === 'P2025') return new NotFoundException('Registro não encontrado.');
     // A mensagem do Prisma mostra tabelas, colunas e trechos da consulta: só no log
     Logger.error(err.message, 'PrismaErroFilter');

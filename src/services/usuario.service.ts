@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
@@ -72,7 +73,8 @@ export class UsuarioService {
     });
   }
 
-  /** Inativar encerra as sessões abertas e invalida os links de senha pendentes. */
+  /** Inativar encerra as sessões abertas e invalida os links de senha pendentes.
+   *  Serializable: dois gestores se desativando ao mesmo tempo não zeram os gestores. */
   async definirAtivo(id: number, ativo: boolean, gestorId: number) {
     if (!ativo && id === gestorId) {
       throw new BadRequestException('Você não pode desativar o seu próprio usuário.');
@@ -85,6 +87,9 @@ export class UsuarioService {
         ...USUARIO_PUBLICO,
       });
       if (!ativo) {
+        if (!(await tx.usuario.count({ where: { perfil: PerfilUsuario.GESTOR, ativo: true } }))) {
+          throw new ConflictException('O sistema precisa de pelo menos um gestor ativo.');
+        }
         await tx.sessaoUsuario.updateMany({
           where: { usuarioId: id, revogadaEm: null },
           data: { revogadaEm: agora },
@@ -95,7 +100,7 @@ export class UsuarioService {
         });
       }
       return usuario;
-    });
+    }, { isolationLevel: 'Serializable' });
   }
 
   /** Quem está no header X-Usuario-Id precisa existir e estar ativo para alterar dados. */

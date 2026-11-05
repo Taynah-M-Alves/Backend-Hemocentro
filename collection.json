@@ -137,7 +137,7 @@
                 "inativar"
               ]
             },
-            "description": "Só gestor logado: faça antes o \"Entrar (login)\" da pasta 6 com um gestor (o cookie hemocentro_sessao fica no Postman e o csrfToken vai para a variável). Desativa o usuário {{usuarioAlvoId}}: o login dele passa a dar 401, as sessões abertas são encerradas e os links de troca de senha pendentes deixam de valer; esqueci-senha não manda mais e-mail. 200 com o usuário (ativo: false); 400 se for você mesmo; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 404 se o usuário não existir."
+            "description": "Só gestor logado: faça antes o \"Entrar (login)\" da pasta 6 com um gestor (o cookie hemocentro_sessao fica no Postman e o csrfToken vai para a variável). Desativa o usuário {{usuarioAlvoId}}: o login dele passa a dar 401, as sessões abertas são encerradas e os links de troca de senha pendentes deixam de valer; esqueci-senha não manda mais e-mail. 200 com o usuário (ativo: false); 400 se for você mesmo; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 404 se o usuário não existir; 409 se o sistema ficaria sem nenhum gestor ativo."
           }
         },
         {
