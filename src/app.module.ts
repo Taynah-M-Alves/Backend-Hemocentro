@@ -25,6 +25,7 @@ import { UsuarioService } from './services/usuario.service.js';
 import { AutenticacaoService } from './services/autenticacao.service.js';
 import { SenhaService } from './services/senha.service.js';
 import { SessaoService } from './services/sessao.service.js';
+import { EmailService } from './services/email.service.js';
 import { AutenticacaoController } from './controllers/autenticacao.controller.js';
 
 @Module({
@@ -58,6 +59,7 @@ import { AutenticacaoController } from './controllers/autenticacao.controller.js
     AutenticacaoService,
     SenhaService,
     SessaoService,
+    EmailService,
   ],
 })
 export class AppModule {}

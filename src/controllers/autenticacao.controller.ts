@@ -7,13 +7,18 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { lerLoginDto } from '../dtos/autenticacao.dto.js';
+import {
+  lerEsqueciSenhaDto,
+  lerLoginDto,
+  lerRedefinirSenhaDto,
+} from '../dtos/autenticacao.dto.js';
 import { AutenticacaoService } from '../services/autenticacao.service.js';
 import { SessaoService } from '../services/sessao.service.js';
 import { timingSafeEqual } from 'node:crypto';
@@ -147,5 +152,30 @@ export class AutenticacaoController {
       sameSite: 'lax',
       path: '/api',
     });
+  }
+
+  @Post('esqueci-senha')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  esqueciSenha(@Body() body: unknown) {
+    // Sem await: a resposta sai no mesmo tempo, exista ou não o e-mail
+    this.autenticacao
+      .esqueciSenha(lerEsqueciSenhaDto(body))
+      .catch((erro: unknown) =>
+        Logger.error(`Falha no esqueci-senha: ${String(erro)}`, 'Autenticacao'),
+      );
+    return {
+      message:
+        'Se o e-mail estiver cadastrado, você vai receber um link para criar uma nova senha.',
+    };
+  }
+
+  @Post('redefinir-senha')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  async redefinirSenha(@Body() body: unknown) {
+    const { token, senha } = lerRedefinirSenhaDto(body);
+    await this.autenticacao.redefinirSenha(token, senha);
+    return { message: 'Senha alterada. Entre com a nova senha.' };
   }
 }

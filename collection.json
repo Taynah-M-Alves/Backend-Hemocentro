@@ -1050,6 +1050,75 @@
           }
         }
       ]
+    },
+    {
+      "name": "6. Senha (esqueci / redefinir)",
+      "item": [
+        {
+          "name": "Esqueci a senha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/esqueci-senha",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "esqueci-senha"
+              ]
+            },
+            "description": "Sempre 200 com a mesma mensagem, exista ou não o e-mail. Se for de um usuário ativo, envia o link FRONTEND_URL/redefinir-senha?token=... (vale 30 min, uma vez só; no máximo 1 e-mail por minuto). Sem SMTP_HOST no .env, o e-mail aparece no terminal do backend. Copie o token do link para a variável tokenSenha.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"camila@hemocentro.local\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Redefinir senha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/redefinir-senha",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "redefinir-senha"
+              ]
+            },
+            "description": "Troca a senha com o token do e-mail (8 a 10 caracteres, sem espaços). 200; 400 se o link for inválido, usado ou expirado, ou se a senha não seguir a regra. Encerra todas as sessões do usuário.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{tokenSenha}}\",\n  \"senha\": \"Nova#123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -1080,6 +1149,10 @@
     {
       "key": "eventoId",
       "value": "1"
+    },
+    {
+      "key": "tokenSenha",
+      "value": ""
     }
   ]
 }
