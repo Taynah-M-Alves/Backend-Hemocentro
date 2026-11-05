@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { UPLOADS_DIR } from '../config/upload.config.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
-import { codigoFicha } from '../utils/formatos.js';
+import { codigoFicha, dataHoraLocal } from '../utils/formatos.js';
 import { FilaLeituraService } from './fila-leitura.service.js';
 import { PrismaService } from './prisma.service.js';
 import { UsuarioService } from './usuario.service.js';
@@ -61,7 +61,7 @@ export class DocumentoService {
     const liberaEm = (ficha.falhouEm?.getTime() ?? 0) + ESPERA_REPROCESSAR_MS;
     if (Date.now() < liberaEm) {
       throw new ConflictException(
-        `Aguarde 5 minutos após a falha para reprocessar (liberado em ${new Date(liberaEm).toISOString()}).`,
+        `Aguarde 5 minutos após a falha para reprocessar (liberado em ${dataHoraLocal(new Date(liberaEm))}).`,
       );
     }
 

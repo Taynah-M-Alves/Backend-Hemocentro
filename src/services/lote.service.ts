@@ -5,7 +5,7 @@ import * as path from 'path';
 import { MAXIMO_PAGINAS_POR_ARQUIVO } from '../config/upload.config.js';
 import { lerCriarLoteDto } from '../dtos/lote.dto.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
-import { codigoLote, nomeDigitalizacao } from '../utils/formatos.js';
+import { codigoLote, dataHoraLocal, nomeDigitalizacao } from '../utils/formatos.js';
 import { paginado, type Paginacao } from '../utils/paginacao.js';
 import { idValido } from '../utils/validacao.js';
 import { DocumentoImagemService } from './documento-imagem.service.js';
@@ -198,6 +198,5 @@ export class LoteService {
 const somaPaginas = (documentos: { totalPaginas: number | null }[]) =>
   documentos.reduce((soma, d) => soma + (d.totalPaginas ?? 0), 0);
 
-/** "25-10-2026" (data de Cuiabá); cada arquivo aparece como "12.1 - 25-10-2026". */
-const nomePadrao = () =>
-  new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Cuiaba' }).replaceAll('/', '-');
+/** "25-10-2026" (data no FUSO_HORARIO); cada arquivo aparece como "12.1 - 25-10-2026". */
+const nomePadrao = () => dataHoraLocal(new Date()).slice(0, 10).replaceAll('/', '-');
