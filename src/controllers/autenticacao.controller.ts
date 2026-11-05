@@ -17,6 +17,7 @@ import { lerLoginDto } from '../dtos/autenticacao.dto.js';
 import { AutenticacaoService } from '../services/autenticacao.service.js';
 import { SessaoService } from '../services/sessao.service.js';
 import { timingSafeEqual } from 'node:crypto';
+import { RotaPublica } from '../decorators/rota-publica.decorator.js';
 
 @Controller('auth')
 export class AutenticacaoController {
@@ -24,6 +25,11 @@ export class AutenticacaoController {
     private readonly autenticacao: AutenticacaoService,
     private readonly sessoes: SessaoService,
   ) {}
+
+  @RotaPublica()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

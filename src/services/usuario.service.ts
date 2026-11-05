@@ -3,10 +3,9 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import type {
-  AlterarUsuarioDto,
-  CriarUsuarioDto,
-} from '../dtos/usuario.dto.js';
+import type { AlterarUsuarioDto } from '../dtos/usuario.dto.js';
+import type { CadastrarFuncionarioDto } from '../dtos/cadastro-funcionario.dto.js';
+import { PerfilUsuario } from '../generated/prisma/enums.js';
 import { PrismaService } from './prisma.service.js';
 
 const USUARIO_PUBLICO = {
@@ -39,10 +38,22 @@ export class UsuarioService {
     });
   }
 
-  /** Email repetido ou colaboradora já ligada a outro usuário viram 409 (PrismaErroFilter). */
-  async criar(dto: CriarUsuarioDto) {
+  /** E-mail ou vínculo repetido são tratados como 409 pelo filtro do Prisma. */
+  async criar(dto: CadastrarFuncionarioDto) {
     await this.exigirColaborador(dto.colaboradorId);
-    return this.prisma.usuario.create({ data: dto, ...USUARIO_PUBLICO });
+
+    return this.prisma.usuario.create({
+      data: {
+        nome: dto.nome,
+        email: dto.email,
+        colaboradorId: dto.colaboradorId,
+        permissoes: dto.permissoes,
+        perfil: PerfilUsuario.COLABORADOR,
+        ativo: true,
+        senhaHash: null,
+      },
+      ...USUARIO_PUBLICO,
+    });
   }
 
   async alterar(id: number, dto: AlterarUsuarioDto) {

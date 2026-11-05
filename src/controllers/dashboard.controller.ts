@@ -1,8 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { lerPeriodoDto } from '../dtos/auditoria.dto.js';
 import { DashboardService } from '../services/dashboard.service.js';
+import { PermissoesPermitidas } from '../decorators/permissoes-permitidas.decorator.js';
 
 @Controller('dashboard')
+@PermissoesPermitidas('VISUALIZAR_DASHBOARD')
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 

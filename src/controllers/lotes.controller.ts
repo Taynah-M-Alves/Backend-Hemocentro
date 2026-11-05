@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -19,9 +18,12 @@ import {
 } from '../config/upload.config.js';
 import { LoteService } from '../services/lote.service.js';
 import { paginacao } from '../utils/paginacao.js';
+import { UsuarioId } from '../decorators/usuario-id.decorator.js';
+import { PermissoesPermitidas } from '../decorators/permissoes-permitidas.decorator.js';
 
 /** Tela Upload. */
 @Controller('lotes')
+@PermissoesPermitidas('ENVIAR_DOCUMENTOS')
 export class LotesController {
   constructor(private readonly lotes: LoteService) {}
 
@@ -31,12 +33,13 @@ export class LotesController {
    */
   @Post()
   @HttpCode(HttpStatus.ACCEPTED)
-  @UseInterceptors(FilesInterceptor('arquivos', MAXIMO_ARQUIVOS_POR_ENVIO, uploadLoteOptions))
+  @UseInterceptors(
+    FilesInterceptor('arquivos', MAXIMO_ARQUIVOS_POR_ENVIO, uploadLoteOptions),
+  )
   criar(
     @UploadedFiles() arquivos: Express.Multer.File[] | undefined,
     @Body() body: unknown,
-    // Lido cru (e conferido no service) para que um header inválido também apague os arquivos já salvos
-    @Headers('x-usuario-id') usuarioId: string | undefined,
+    @UsuarioId() usuarioId: number,
   ) {
     return this.lotes.criar(arquivos ?? [], body, usuarioId);
   }

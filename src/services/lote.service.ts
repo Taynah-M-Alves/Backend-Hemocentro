@@ -7,7 +7,6 @@ import { lerCriarLoteDto } from '../dtos/lote.dto.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
 import { codigoLote, nomeDigitalizacao } from '../utils/formatos.js';
 import { paginado, type Paginacao } from '../utils/paginacao.js';
-import { idValido } from '../utils/validacao.js';
 import { DocumentoImagemService } from './documento-imagem.service.js';
 import { FilaLeituraService } from './fila-leitura.service.js';
 import { PrismaService } from './prisma.service.js';
@@ -27,79 +26,123 @@ export class LoteService {
   ) {}
 
   /** Cada arquivo = uma ficha de um paciente: cria Lote, Documento e FichaDigitalizada (ENVIADA). */
-  async criar(arquivos: Express.Multer.File[], body: unknown, cabecalhoUsuario?: string) {
+  async criar(
+    arquivos: Express.Multer.File[],
+    body: unknown,
+    usuarioId: number,
+  ) {
     try {
       const dto = lerCriarLoteDto(body);
-      const usuarioId = idValido(cabecalhoUsuario, 'X-Usuario-Id');
+
       if (!arquivos.length) {
         throw new BadRequestException(
           'Nenhum arquivo recebido. Envie os arquivos no campo "arquivos" via multipart/form-data.',
         );
       }
-      await this.usuarios.exigirAtivo(usuarioId);
-      const conferidos = await Promise.all(arquivos.map((a) => this.conferir(a)));
 
-      // Mesmo conteúdo já enviado antes: aceita, mas avisa na resposta
+      await this.usuarios.exigirAtivo(usuarioId);
+
+      const conferidos = await Promise.all(
+        arquivos.map((arquivo) => this.conferir(arquivo)),
+      );
+
+      // Mesmo conteúdo já enviado antes: aceita, mas avisa na resposta.
       const repetidos = await this.prisma.documento.findMany({
-        where: { sha256: { in: conferidos.map((c) => c.sha256) } },
-        select: { id: true, sha256: true },
+        where: {
+          sha256: {
+            in: conferidos.map((conferido) => conferido.sha256),
+          },
+        },
+        select: {
+          id: true,
+          sha256: true,
+        },
       });
-      const repetidoDe = new Map(repetidos.map((d) => [d.sha256, d.id]));
+
+      const repetidoDe = new Map(
+        repetidos.map((documento) => [documento.sha256, documento.id]),
+      );
 
       const lote = await this.prisma.$transaction(async (tx) => {
         const novo = await tx.lote.create({
-          data: { nome: dto.nome ?? nomePadrao(), enviadoPorId: usuarioId },
+          data: {
+            nome: dto.nome ?? nomePadrao(),
+            enviadoPorId: usuarioId,
+          },
         });
+
         const documentos = [];
-        for (const c of conferidos) {
-          const doc = await tx.documento.create({
+
+        for (const conferido of conferidos) {
+          const documento = await tx.documento.create({
             data: {
               loteId: novo.id,
-              chave: path.basename(c.arquivo.path),
-              nomeOriginal: c.nomeOriginal,
-              mimeType: c.arquivo.mimetype,
-              tamanhoBytes: c.arquivo.size,
-              sha256: c.sha256,
-              totalPaginas: c.totalPaginas,
-              ficha: { create: {} },
+              chave: path.basename(conferido.arquivo.path),
+              nomeOriginal: conferido.nomeOriginal,
+              mimeType: conferido.arquivo.mimetype,
+              tamanhoBytes: conferido.arquivo.size,
+              sha256: conferido.sha256,
+              totalPaginas: conferido.totalPaginas,
+              ficha: {
+                create: {},
+              },
             },
-            include: { ficha: { select: { id: true, status: true } } },
+            include: {
+              ficha: {
+                select: {
+                  id: true,
+                  status: true,
+                },
+              },
+            },
           });
-          documentos.push(doc);
+
+          documentos.push(documento);
         }
+
         await tx.eventoAuditoria.createMany({
-          data: documentos.map((d) => ({
+          data: documentos.map((documento) => ({
             tipo: 'LOTE_ENVIADO' as const,
             usuarioId,
             loteId: novo.id,
-            documentoId: d.id,
-            fichaId: d.ficha!.id,
+            documentoId: documento.id,
+            fichaId: documento.ficha!.id,
           })),
         });
-        return { ...novo, documentos };
+
+        return {
+          ...novo,
+          documentos,
+        };
       });
 
       void this.fila.processar();
+
       return {
         id: lote.id,
         codigo: codigoLote(lote.id),
         nome: lote.nome,
         enviadoEm: lote.enviadoEm,
-        documentos: lote.documentos.map((d, i) => ({
-          id: d.id,
-          nome: nomeDigitalizacao(lote.id, i + 1, lote.nome),
-          nomeOriginal: d.nomeOriginal,
-          tamanhoBytes: d.tamanhoBytes,
-          totalPaginas: d.totalPaginas,
-          fichaId: d.ficha!.id,
-          status: d.ficha!.status,
-          repetidoDoDocumentoId: repetidoDe.get(d.sha256) ?? null,
+        documentos: lote.documentos.map((documento, indice) => ({
+          id: documento.id,
+          nome: nomeDigitalizacao(lote.id, indice + 1, lote.nome),
+          nomeOriginal: documento.nomeOriginal,
+          tamanhoBytes: documento.tamanhoBytes,
+          totalPaginas: documento.totalPaginas,
+          fichaId: documento.ficha!.id,
+          status: documento.ficha!.status,
+          repetidoDoDocumentoId: repetidoDe.get(documento.sha256) ?? null,
         })),
       };
-    } catch (err) {
-      // Nada foi gravado: os arquivos salvos pelo upload não ficam soltos na pasta
-      await Promise.all(arquivos.map((a) => fs.promises.unlink(a.path).catch(() => undefined)));
-      throw err;
+    } catch (erro) {
+      // Remove os arquivos recebidos caso o processamento falhe.
+      await Promise.all(
+        arquivos.map((arquivo) =>
+          fs.promises.unlink(arquivo.path).catch(() => undefined),
+        ),
+      );
+
+      throw erro;
     }
   }
 
@@ -111,7 +154,9 @@ export class LoteService {
         take: p.take,
         include: {
           enviadoPor: { select: { id: true, nome: true } },
-          documentos: { select: { totalPaginas: true, ficha: { select: { status: true } } } },
+          documentos: {
+            select: { totalPaginas: true, ficha: { select: { status: true } } },
+          },
         },
       }),
       this.prisma.lote.count(),
@@ -136,7 +181,9 @@ export class LoteService {
         enviadoPor: { select: { id: true, nome: true } },
         documentos: {
           orderBy: { id: 'asc' },
-          include: { ficha: { select: { id: true, status: true, erroLeitura: true } } },
+          include: {
+            ficha: { select: { id: true, status: true, erroLeitura: true } },
+          },
         },
       },
     });
@@ -144,7 +191,8 @@ export class LoteService {
 
     const porStatus: Partial<Record<StatusFicha, number>> = {};
     for (const d of lote.documentos) {
-      if (d.ficha) porStatus[d.ficha.status] = (porStatus[d.ficha.status] ?? 0) + 1;
+      if (d.ficha)
+        porStatus[d.ficha.status] = (porStatus[d.ficha.status] ?? 0) + 1;
     }
     return {
       id: lote.id,
@@ -172,14 +220,21 @@ export class LoteService {
   /** Confere páginas e calcula o sha256 antes de gravar qualquer coisa. */
   private async conferir(arquivo: Express.Multer.File) {
     // O multer entrega o nome em latin1; acentos ("ana_luísa.pdf") precisam voltar para UTF-8
-    const nomeOriginal = Buffer.from(arquivo.originalname, 'latin1').toString('utf8');
+    const nomeOriginal = Buffer.from(arquivo.originalname, 'latin1').toString(
+      'utf8',
+    );
     const conteudo = await fs.promises.readFile(arquivo.path);
 
     let totalPaginas: number;
     try {
-      totalPaginas = await this.imagens.contarPaginas(conteudo, arquivo.mimetype);
+      totalPaginas = await this.imagens.contarPaginas(
+        conteudo,
+        arquivo.mimetype,
+      );
     } catch {
-      throw new BadRequestException(`"${nomeOriginal}" não abre: o PDF parece corrompido.`);
+      throw new BadRequestException(
+        `"${nomeOriginal}" não abre: o PDF parece corrompido.`,
+      );
     }
     if (totalPaginas > MAXIMO_PAGINAS_POR_ARQUIVO) {
       throw new BadRequestException(

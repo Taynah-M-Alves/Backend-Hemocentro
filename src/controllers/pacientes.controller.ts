@@ -2,9 +2,11 @@ import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { UsuarioId } from '../decorators/usuario-id.decorator.js';
 import { lerBuscarPacientesDto } from '../dtos/paciente.dto.js';
 import { PacienteService } from '../services/paciente.service.js';
+import { PermissoesPermitidas } from '../decorators/permissoes-permitidas.decorator.js';
 
 /** Telas Consulta de prontuário e Ficha completa (somente leitura). */
 @Controller('pacientes')
+@PermissoesPermitidas('CONSULTAR_PRONTUARIOS')
 export class PacientesController {
   constructor(private readonly pacientes: PacienteService) {}
 

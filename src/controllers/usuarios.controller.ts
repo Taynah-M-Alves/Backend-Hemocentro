@@ -7,16 +7,16 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import {
-  lerAlterarUsuarioDto,
-  lerCriarUsuarioDto,
-} from '../dtos/usuario.dto.js';
+import { lerAlterarUsuarioDto } from '../dtos/usuario.dto.js';
+import { lerCadastrarFuncionarioDto } from '../dtos/cadastro-funcionario.dto.js';
 import { UsuarioService } from '../services/usuario.service.js';
+import { SomenteGestorGuard } from '../guards/somente-gestor.guard.js';
 
-// Sem tela no design. Não exige X-Usuario-Id porque é por aqui que o primeiro usuário
-// é criado (provisório até existir login).
+/** Administração de contas de acesso, exclusiva do gestor. */
 @Controller('usuarios')
+@UseGuards(SomenteGestorGuard)
 export class UsuariosController {
   constructor(private readonly usuarios: UsuarioService) {}
 
@@ -26,10 +26,10 @@ export class UsuariosController {
     return this.usuarios.listar(ativo !== 'false');
   }
 
-  /** POST /api/usuarios — 201; 409 se o email já existir */
+  /** POST /api/usuarios — cria funcionário sem senha definida. */
   @Post()
   criar(@Body() body: unknown) {
-    return this.usuarios.criar(lerCriarUsuarioDto(body));
+    return this.usuarios.criar(lerCadastrarFuncionarioDto(body));
   }
 
   /** PATCH /api/usuarios/:id — nome, ativo e/ou colaboradorId */
