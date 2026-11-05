@@ -13,6 +13,9 @@ import { FilaLeituraService } from './fila-leitura.service.js';
 import { PrismaService } from './prisma.service.js';
 import { UsuarioService } from './usuario.service.js';
 
+/** Tempo mínimo entre a falha da IA (falhouEm) e o reprocessar: 5 min. */
+const ESPERA_REPROCESSAR_MS = 5 * 60_000;
+
 @Injectable()
 export class DocumentoService {
   constructor(
@@ -45,7 +48,7 @@ export class DocumentoService {
     });
   }
 
-  /** FALHA_LEITURA → ENVIADA, zerando as tentativas. A fila lê de novo em seguida. */
+  /** FALHA_LEITURA → ENVIADA, 5 min após a falha, zerando as tentativas. A fila lê de novo em seguida. */
   async reprocessar(id: number, usuarioId: number) {
     await this.usuarios.exigirAtivo(usuarioId);
     const doc = await this.encontrar(id);
@@ -53,6 +56,12 @@ export class DocumentoService {
     if (ficha?.status !== StatusFicha.FALHA_LEITURA) {
       throw new ConflictException(
         `Só dá para reprocessar uma ficha em FALHA_LEITURA${ficha ? `; ${codigoFicha(ficha.id)} está em ${ficha.status}` : ''}.`,
+      );
+    }
+    const liberaEm = (ficha.falhouEm?.getTime() ?? 0) + ESPERA_REPROCESSAR_MS;
+    if (Date.now() < liberaEm) {
+      throw new ConflictException(
+        `Aguarde 5 minutos após a falha para reprocessar (liberado em ${new Date(liberaEm).toISOString()}).`,
       );
     }
 

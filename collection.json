@@ -352,7 +352,7 @@
                 "reprocessar"
               ]
             },
-            "description": "Só quando a ficha está em FALHA_LEITURA (senão 409). 202 com { fichaId, status: \"ENVIADA\" }."
+            "description": "Só quando a ficha está em FALHA_LEITURA e 5 minutos depois de falhouEm (senão 409). 202 com { fichaId, status: \"ENVIADA\" }."
           }
         }
       ]
