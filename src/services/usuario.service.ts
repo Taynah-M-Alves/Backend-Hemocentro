@@ -9,8 +9,22 @@ import type {
 } from '../dtos/usuario.dto.js';
 import { PrismaService } from './prisma.service.js';
 
-const COM_COLABORADOR = {
-  include: { colaborador: { select: { id: true, nome: true } } },
+const USUARIO_PUBLICO = {
+  select: {
+    id: true,
+    nome: true,
+    email: true,
+    ativo: true,
+    perfil: true,
+    permissoes: true,
+    colaboradorId: true,
+    colaborador: {
+      select: {
+        id: true,
+        nome: true,
+      },
+    },
+  },
 } as const;
 
 @Injectable()
@@ -21,14 +35,14 @@ export class UsuarioService {
     return this.prisma.usuario.findMany({
       where: { ativo },
       orderBy: { nome: 'asc' },
-      ...COM_COLABORADOR,
+      ...USUARIO_PUBLICO,
     });
   }
 
   /** Email repetido ou colaboradora já ligada a outro usuário viram 409 (PrismaErroFilter). */
   async criar(dto: CriarUsuarioDto) {
     await this.exigirColaborador(dto.colaboradorId);
-    return this.prisma.usuario.create({ data: dto, ...COM_COLABORADOR });
+    return this.prisma.usuario.create({ data: dto, ...USUARIO_PUBLICO });
   }
 
   async alterar(id: number, dto: AlterarUsuarioDto) {
@@ -36,7 +50,7 @@ export class UsuarioService {
     return this.prisma.usuario.update({
       where: { id },
       data: dto,
-      ...COM_COLABORADOR,
+      ...USUARIO_PUBLICO,
     });
   }
 

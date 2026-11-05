@@ -124,7 +124,6 @@ model Paciente {
   @@map("paciente")
 }
 
-
 model Cidade {
   id                   Int                  @id @default(autoincrement())
   nomeCidade           String               @map("nome_cidade") @db.VarChar(120)
@@ -195,20 +194,20 @@ model FichaTransfusional {
 
 /// Pesquisa Imuno Hematológica (MTHEMO.GDL.IMUNOREC.PIH)
 model PesquisaAnticorpos {
-  id             Int       @id @default(autoincrement())
-  dataPesquisa   DateTime  @map("data_pesquisa") @db.Date
+  id             Int             @id @default(autoincrement())
+  dataPesquisa   DateTime        @map("data_pesquisa") @db.Date
   gs             GrupoAbo?
   rh             Rh? // "Fator Rh"
-  dFraco         String?   @map("d_fraco") @db.VarChar(50)
+  dFraco         String?         @map("d_fraco") @db.VarChar(50)
   pai            ResultadoTeste? // Pesquisa de anticorpos irregulares
   tad            ResultadoTeste? // Teste da antiglobulina humana
   autocontrole   ResultadoTeste?
   dcScreening    ResultadoTeste? @map("dc_screening") // Antiglobulina monoespecífico DC-Screening I
-  especificidade String?   @db.VarChar(255) // Identificação de anticorpos irregulares
-  interpretacao  String?   @db.VarChar(255)
-  observacao     String?   @db.VarChar(255)
-  amostra        String?   @db.VarChar(50) // ex.: EDTA
-  metodologia    String?   @db.VarChar(100) // ex.: Gel/Centrifugação
+  especificidade String?         @db.VarChar(255) // Identificação de anticorpos irregulares
+  interpretacao  String?         @db.VarChar(255)
+  observacao     String?         @db.VarChar(255)
+  amostra        String?         @db.VarChar(50) // ex.: EDTA
+  metodologia    String?         @db.VarChar(100) // ex.: Gel/Centrifugação
 
   pacienteId String   @map("paciente_id") @db.Uuid
   paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
@@ -286,13 +285,34 @@ model ResultadoCelula {
 
 // ─── Fluxo de envio e revisão (telas: Upload, Fila, Revisar, Auditoria) ──────
 
-/// Quem usa o sistema. Todos têm o mesmo acesso (sem perfis).
+enum PerfilUsuario {
+  GESTOR
+  COLABORADOR
+}
+
+enum PermissaoUsuario {
+  VISUALIZAR_DASHBOARD
+  ENVIAR_DOCUMENTOS
+  REVISAR_FICHAS
+  CONSULTAR_PRONTUARIOS
+  CONSULTAR_AUDITORIA
+}
+
+enum FinalidadeTokenSenha {
+  DEFINIR_SENHA
+  REDEFINIR_SENHA
+}
+
+/// Conta de acesso ao sistema, com perfil e permissões.
 model Usuario {
-  id            Int     @id @default(autoincrement())
-  nome          String  @db.VarChar(255)
-  email         String  @unique @db.VarChar(255)
-  ativo         Boolean @default(true)
-  colaboradorId Int?    @unique @map("colaborador_id") // só quando o usuário também é colaboradora
+  id            Int               @id @default(autoincrement())
+  nome          String            @db.VarChar(255)
+  email         String            @unique @db.VarChar(255)
+  ativo         Boolean           @default(true)
+  senhaHash     String?           @map("senha_hash") @db.Text
+  perfil        PerfilUsuario     @default(COLABORADOR)
+  permissoes    PermissaoUsuario[] @default([])
+  colaboradorId Int?              @unique @map("colaborador_id")
 
   colaborador     Colaborador?        @relation(fields: [colaboradorId], references: [id])
   lotesEnviados   Lote[]
@@ -300,7 +320,44 @@ model Usuario {
   fichasValidadas FichaDigitalizada[] @relation("Validador")
   eventos         EventoAuditoria[]
 
+  sessoes     SessaoUsuario[]
+  tokensSenha TokenSenha[]
+
   @@map("usuario")
+}
+
+/// Sessão autenticada. O identificador secreto do cookie é armazenado como hash.
+model SessaoUsuario {
+  id         String    @id @default(uuid()) @db.Uuid
+  usuarioId  Int       @map("usuario_id")
+  tokenHash  String    @unique @map("token_hash") @db.Char(64)
+  csrfToken  String    @map("csrf_token") @db.Char(64)
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+  expiraEm   DateTime  @map("expira_em")
+  revogadaEm DateTime? @map("revogada_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, revogadaEm])
+  @@index([expiraEm])
+  @@map("sessao_usuario")
+}
+
+/// Link temporário de primeiro acesso ou recuperação de senha.
+model TokenSenha {
+  id         String               @id @default(uuid()) @db.Uuid
+  usuarioId  Int                  @map("usuario_id")
+  tokenHash  String               @unique @map("token_hash") @db.Char(64)
+  finalidade FinalidadeTokenSenha
+  criadoEm   DateTime             @default(now()) @map("criado_em")
+  expiraEm   DateTime             @map("expira_em")
+  usadoEm    DateTime?            @map("usado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiraEm])
+  @@map("token_senha")
 }
 
 /// Um envio de arquivos (ex.: DEM-012, 24 arquivos)

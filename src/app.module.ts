@@ -22,6 +22,10 @@ import { LoteService } from './services/lote.service.js';
 import { PacienteService } from './services/paciente.service.js';
 import { PrismaService } from './services/prisma.service.js';
 import { UsuarioService } from './services/usuario.service.js';
+import { AutenticacaoService } from './services/autenticacao.service.js';
+import { SenhaService } from './services/senha.service.js';
+import { SessaoService } from './services/sessao.service.js';
+import { AutenticacaoController } from './controllers/autenticacao.controller.js';
 
 @Module({
   controllers: [
@@ -34,6 +38,7 @@ import { UsuarioService } from './services/usuario.service.js';
     UsuariosController,
     ColaboradoresController,
     CidadesController,
+    AutenticacaoController,
   ],
   providers: [
     PrismaService,
@@ -50,6 +55,9 @@ import { UsuarioService } from './services/usuario.service.js';
     UsuarioService,
     ColaboradorService,
     CidadeService,
+    AutenticacaoService,
+    SenhaService,
+    SessaoService,
   ],
 })
 export class AppModule {}
