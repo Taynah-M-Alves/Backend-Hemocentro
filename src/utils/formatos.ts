@@ -63,7 +63,8 @@ export const igual = (valor: string) => ({
 
 /** Busca por trecho, sem diferenciar maiúsculas/minúsculas. */
 export const contem = (valor: string) => ({
-  contains: valor,
+  // O Prisma não escapa os curingas do LIKE: sem isso, "%" listaria tudo
+  contains: valor.replace(/[\\%_]/g, '\\$&'),
   mode: 'insensitive' as const,
 });
 

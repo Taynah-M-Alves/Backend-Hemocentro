@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface.js';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import { diskStorage } from 'multer';
 import * as path from 'path';
@@ -21,10 +22,9 @@ const EXTENSAO_POR_MIME: Record<string, string> = {
   'image/png': '.png',
 };
 
-/** Nome único para não sobrescrever arquivos enviados ao mesmo tempo (ex.: 1760490000000-k3j9xa.pdf). */
+/** Nome único e imprevisível (ex.: 1760490000000-3f2a9c1e-....pdf). */
 function nomeUnico(mimeType: string): string {
-  const aleatorio = Math.random().toString(36).slice(2, 8);
-  return `${Date.now()}-${aleatorio}${EXTENSAO_POR_MIME[mimeType]}`;
+  return `${Date.now()}-${randomUUID()}${EXTENSAO_POR_MIME[mimeType]}`;
 }
 
 /** Configuração do multer: onde salvar, com que nome, tamanho máximo e tipos aceitos. */
@@ -38,7 +38,7 @@ export const uploadLoteOptions: MulterOptions = {
   }),
   limits: { fileSize: TAMANHO_MAXIMO_BYTES, files: MAXIMO_ARQUIVOS_POR_ENVIO },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype in EXTENSAO_POR_MIME) {
+    if (Object.hasOwn(EXTENSAO_POR_MIME, file.mimetype)) {
       cb(null, true);
       return;
     }

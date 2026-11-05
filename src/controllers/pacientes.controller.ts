@@ -12,8 +12,11 @@ export class PacientesController {
 
   /** GET /api/pacientes?nome=&dataNascimento=&nomeMae=&prontuario=&pagina=&limite= */
   @Get()
-  buscar(@Query() query: Record<string, string | undefined>) {
-    return this.pacientes.buscar(lerBuscarPacientesDto(query));
+  buscar(
+    @Query() query: Record<string, string | undefined>,
+    @UsuarioId() usuarioId: number,
+  ) {
+    return this.pacientes.buscar(lerBuscarPacientesDto(query), usuarioId);
   }
 
   /** GET /api/pacientes/:id — grava CONSULTA (X-Usuario-Id opcional) */

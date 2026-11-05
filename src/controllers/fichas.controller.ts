@@ -43,8 +43,8 @@ export class FichasController {
 
   /** GET /api/fichas/:id — a ficha com os dados lidos pela IA, para editar */
   @Get(':id')
-  detalhe(@Param('id', ParseIntPipe) id: number) {
-    return this.fichas.detalhe(id);
+  detalhe(@Param('id', ParseIntPipe) id: number, @UsuarioId() usuarioId: number) {
+    return this.fichas.detalhe(id, usuarioId);
   }
 
   /** GET /api/fichas/:id/semelhantes — pacientes já cadastrados parecidos */

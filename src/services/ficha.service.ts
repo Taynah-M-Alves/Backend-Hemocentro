@@ -149,8 +149,17 @@ export class FichaService {
     };
   }
 
-  async detalhe(id: number) {
+  /**
+   * Com usuarioId, grava CONSULTA: a ficha traz nome, mãe, nascimento e transfusões lidos pela IA.
+   * Sem ele, é a resposta de uma edição, que já fica na auditoria como edição.
+   */
+  async detalhe(id: number, usuarioId?: number) {
     const ficha = await this.carregar(id);
+    if (usuarioId !== undefined) {
+      await this.prisma.eventoAuditoria.create({
+        data: { tipo: 'CONSULTA', ...this.alvo(ficha), pacienteId: ficha.pacienteId, usuarioId },
+      });
+    }
     const recusa =
       ficha.status === StatusFicha.RECUSADA
         ? await this.prisma.eventoAuditoria.findFirst({

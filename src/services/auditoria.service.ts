@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { FiltroEventosDto } from '../dtos/auditoria.dto.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { TipoEvento } from '../generated/prisma/enums.js';
@@ -25,6 +25,9 @@ const RESUMO = {
  * Tela Auditoria: só lê. Os eventos são gravados pelas próprias rotas (upload, leitura,
  * revisão, aprovação, consulta) e nunca são editados ou apagados.
  */
+/** Mantém a planilha e a memória do servidor num tamanho seguro. */
+const MAXIMO_LINHAS_EXPORTACAO = 50_000;
+
 @Injectable()
 export class AuditoriaService {
   constructor(private readonly prisma: PrismaService) {}
@@ -96,7 +99,13 @@ export class AuditoriaService {
       where: filtro(dto),
       orderBy: { ocorridoEm: 'desc' },
       include: RESUMO,
+      take: MAXIMO_LINHAS_EXPORTACAO + 1,
     });
+    if (eventos.length > MAXIMO_LINHAS_EXPORTACAO) {
+      throw new BadRequestException(
+        `A exportação passa de ${MAXIMO_LINHAS_EXPORTACAO.toLocaleString('pt-BR')} eventos. Use os filtros de data para dividir.`,
+      );
+    }
     const cabecalho = [
       'codigo', 'ocorrido_em', 'tipo', 'usuario', 'ficha', 'lote', 'paciente',
       'campo', 'pagina', 'valor_anterior', 'valor_posterior', 'justificativa',

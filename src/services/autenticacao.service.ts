@@ -16,7 +16,11 @@ const VALIDADE_LINK_MS = 30 * 60 * 1000;
 const INTERVALO_REENVIO_MS = 60 * 1000;
 const QUINZE_MINUTOS = 15 * 60 * 1000;
 
-function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: string): string {
+const escaparHtml = (texto: string) =>
+  texto.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+function gerarTemplateEmailRedefinicao(nomeUsuario: string, link: string, dataLimite: string): string {
+  const nome = escaparHtml(nomeUsuario);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>

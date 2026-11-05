@@ -23,6 +23,7 @@ import {
 import { AutenticacaoService } from '../services/autenticacao.service.js';
 import { SessaoService, tokenDoCookie } from '../services/sessao.service.js';
 import { RotaPublica } from '../decorators/rota-publica.decorator.js';
+import { origensPermitidas } from '../utils/origens.js';
 
 @Controller('auth')
 export class AutenticacaoController {
@@ -41,14 +42,9 @@ export class AutenticacaoController {
     @Ip() ip: string,
     @Res({ passthrough: true }) resposta: Response,
   ) {
-    const origensPermitidas = (
-      process.env.CORS_ORIGINS ?? 'http://localhost:8080,http://localhost:8081'
-    )
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const origens = origensPermitidas();
 
-    if (origem && !origensPermitidas.includes(origem)) {
+    if (origem && !origens.includes(origem)) {
       throw new ForbiddenException('Origem não permitida.');
     }
 
@@ -58,7 +54,7 @@ export class AutenticacaoController {
 
     resposta.cookie('hemocentro_sessao', sessao.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // os navegadores aceitam Secure em http://localhost
       sameSite: 'lax',
       path: '/api',
       maxAge: Math.max(0, sessao.expiraEm.getTime() - Date.now()),
@@ -108,14 +104,9 @@ export class AutenticacaoController {
     @Headers('x-csrf-token') csrfRecebido: string | undefined,
     @Res({ passthrough: true }) resposta: Response,
   ): Promise<void> {
-    const origensPermitidas = (
-      process.env.CORS_ORIGINS ?? 'http://localhost:8080,http://localhost:8081'
-    )
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const origens = origensPermitidas();
 
-    if (origem && !origensPermitidas.includes(origem)) {
+    if (origem && !origens.includes(origem)) {
       throw new ForbiddenException('Origem não permitida.');
     }
 
@@ -125,7 +116,7 @@ export class AutenticacaoController {
 
     resposta.clearCookie('hemocentro_sessao', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // os navegadores aceitam Secure em http://localhost
       sameSite: 'lax',
       path: '/api',
     });

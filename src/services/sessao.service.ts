@@ -7,7 +7,7 @@ import type { Request } from 'express';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from './prisma.service.js';
 
-const DURACAO_SESSAO_MS = 8 * 60 * 60 * 1000;
+const DURACAO_SESSAO_MS = 4 * 60 * 60 * 1000;
 const FORMATO_TOKEN = /^[a-f0-9]{64}$/;
 
 export function hashToken(token: string): string {

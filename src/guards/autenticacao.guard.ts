@@ -9,6 +9,7 @@ import type { Request } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { ROTA_PUBLICA } from '../decorators/rota-publica.decorator.js';
 import { SessaoService } from '../services/sessao.service.js';
+import { origensPermitidas } from '../utils/origens.js';
 
 type SessaoAutenticada = NonNullable<
   Awaited<ReturnType<SessaoService['buscar']>>
@@ -51,16 +52,11 @@ export class AutenticacaoGuard implements CanActivate {
     const consulta = ['GET', 'HEAD', 'OPTIONS'].includes(requisicao.method);
 
     if (!consulta) {
-      const origensPermitidas = (
-        process.env.CORS_ORIGINS ?? 'http://localhost:8080,http://localhost:8081'
-      )
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
+      const origens = origensPermitidas();
 
       const origem = requisicao.get('origin');
 
-      if (origem && !origensPermitidas.includes(origem)) {
+      if (origem && !origens.includes(origem)) {
         throw new ForbiddenException('Origem não permitida.');
       }
 

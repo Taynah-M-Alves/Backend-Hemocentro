@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { configurarApp } from './configurar-app.js';
+import { origensPermitidas } from './utils/origens.js';
 
 /** Carrega o .env (DATABASE_URL, chaves das IAs...). Sem .env, usa as variáveis do sistema. */
 function carregarEnv(): void {
@@ -21,12 +22,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   configurarApp(app);
   app.enableCors({
-    origin: (
-      process.env.CORS_ORIGINS ?? 'http://localhost:8080,http://localhost:8081'
-    )
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
+    origin: origensPermitidas(),
     credentials: true,
     exposedHeaders: ['Content-Disposition'],
   });

@@ -5,6 +5,7 @@ import {
   ExceptionFilter,
   HttpException,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -33,6 +34,8 @@ export class PrismaErroFilter implements ExceptionFilter {
       );
     }
     if (err.code === 'P2025') return new NotFoundException('Registro não encontrado.');
-    return new InternalServerErrorException(err.message);
+    // A mensagem do Prisma mostra tabelas, colunas e trechos da consulta: só no log
+    Logger.error(err.message, 'PrismaErroFilter');
+    return new InternalServerErrorException('Erro interno no banco de dados.');
   }
 }

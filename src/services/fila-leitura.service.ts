@@ -139,7 +139,8 @@ export class FilaLeituraService implements OnApplicationBootstrap, OnApplication
         data: {
           status: StatusFicha.FALHA_LEITURA,
           tentativasLeitura: ficha.tentativasLeitura + 1,
-          erroLeitura: motivo,
+          // O detalhe (quais IAs, cota, saldo) fica só no log e na auditoria
+          erroLeitura: 'A IA não conseguiu ler a ficha. Tente reprocessar.',
           falhouEm: new Date(),
         },
       }),

@@ -18,12 +18,6 @@ export function validarNovaSenha(valor: unknown): string {
     throw new BadRequestException('Informe a nova senha.');
   }
 
-  if (/\s/u.test(valor)) {
-    throw new BadRequestException(
-      'A senha não pode conter espaços ou quebras de linha.',
-    );
-  }
-
   if (/[\p{Cc}\p{Cf}]/u.test(valor)) {
     throw new BadRequestException(
       'A senha não pode conter caracteres de controle ou formatação invisíveis.',
@@ -32,9 +26,10 @@ export function validarNovaSenha(valor: unknown): string {
 
   const tamanho = Array.from(valor).length;
 
-  if (tamanho < 8 || tamanho > 10) {
+  // Frases-senha são bem-vindas (NIST SP 800-63B): até 64 caracteres, com espaços
+  if (tamanho < 8 || tamanho > 64) {
     throw new BadRequestException(
-      'A senha deve ter entre 8 e 10 caracteres.'
+      'A senha deve ter entre 8 e 64 caracteres.',
     );
   }
 

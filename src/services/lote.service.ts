@@ -6,6 +6,7 @@ import { MAXIMO_PAGINAS_POR_ARQUIVO } from '../config/upload.config.js';
 import { lerCriarLoteDto } from '../dtos/lote.dto.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
 import { codigoLote, dataHoraLocal, nomeDigitalizacao } from '../utils/formatos.js';
+import { problemaNoArquivo } from '../utils/assinatura-arquivo.js';
 import { paginado, type Paginacao } from '../utils/paginacao.js';
 import { DocumentoImagemService } from './documento-imagem.service.js';
 import { FilaLeituraService } from './fila-leitura.service.js';
@@ -224,6 +225,11 @@ export class LoteService {
       'utf8',
     );
     const conteudo = await fs.promises.readFile(arquivo.path);
+
+    const problema = problemaNoArquivo(conteudo, arquivo.mimetype);
+    if (problema) {
+      throw new BadRequestException(`"${nomeOriginal}" foi recusado: ${problema}.`);
+    }
 
     let totalPaginas: number;
     try {

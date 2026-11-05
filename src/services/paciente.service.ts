@@ -30,7 +30,7 @@ export class PacienteService {
     private readonly usuarios: UsuarioService,
   ) {}
 
-  async buscar(dto: BuscarPacientesDto) {
+  async buscar(dto: BuscarPacientesDto, usuarioId: number) {
     const where = {
       ...(dto.nome && { nome: contem(dto.nome) }),
       ...(dto.dataNascimento && { dataNascimento: paraData(dto.dataNascimento) }),
@@ -61,6 +61,15 @@ export class PacienteService {
       municipio: nomeMunicipio(p.municipio),
       fichasValidadas: p._count.fichasDigitalizadas,
     }));
+    // A lista mostra nome, nascimento e mãe: fica registrado quem buscou e com que filtro
+    await this.prisma.eventoAuditoria.create({
+      data: {
+        tipo: 'CONSULTA',
+        usuarioId,
+        campo: 'Busca de pacientes',
+        justificativa: JSON.stringify({ ...dto, paginacao: undefined }),
+      },
+    });
     return paginado(itens, total, dto.paginacao);
   }
 

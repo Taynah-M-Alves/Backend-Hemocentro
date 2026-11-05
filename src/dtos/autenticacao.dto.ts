@@ -23,13 +23,16 @@ export function lerLoginDto(body: unknown): LoginDto {
   const dados = corpo(body);
   const email = lerEmail(dados);
 
-  if (typeof dados.senha !== 'string' || dados.senha.length === 0) {
+  // No login não se aplica a política de senha nova: só limita o tamanho para o Argon2
+  if (
+    typeof dados.senha !== 'string' ||
+    dados.senha.length === 0 ||
+    dados.senha.length > 128
+  ) {
     throw new BadRequestException('Informe sua senha.');
   }
 
-  const senha = validarNovaSenha(dados.senha);
-
-  return { email, senha };
+  return { email, senha: dados.senha };
 }
 
 export const lerEsqueciSenhaDto = (body: unknown): string =>
