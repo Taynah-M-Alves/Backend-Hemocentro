@@ -1,4 +1,8 @@
-import { lerLoginDto, lerRedefinirSenhaDto } from './autenticacao.dto.js';
+import {
+  lerLoginDto,
+  lerRedefinirSenhaDto,
+  lerTrocarSenhaDto,
+} from './autenticacao.dto.js';
 
 describe('lerLoginDto', () => {
   it('normaliza o e-mail e preserva a senha', () => {
@@ -28,34 +32,46 @@ describe('lerLoginDto', () => {
     ).toThrow('Informe sua senha.');
   });
 
-  it.each(['Abc!234', 'Abc!2345678'])(
-    'rejeita comprimento fora da faixa: %j',
+  // A regra de senha nova não vale no login: senhas antigas fora dela continuam entrando
+  it.each(['curta', 'Teste 42', '12345678'])(
+    'não aplica a regra de senha nova no login: %j',
     (senha) => {
-      expect(() =>
-        lerLoginDto({
-          email: 'teste@example.com',
-          senha,
-        }),
-      ).toThrow('A senha deve ter entre 8 e 10 caracteres.');
+      expect(lerLoginDto({ email: 'teste@example.com', senha }).senha).toBe(
+        senha,
+      );
     },
   );
 
-  it('rejeita espaços na senha', () => {
+  it('rejeita senha com mais de 128 caracteres', () => {
     expect(() =>
-      lerLoginDto({
-        email: 'teste@example.com',
-        senha: 'Teste 42',
-      }),
-    ).toThrow('A senha não pode conter espaços ou quebras de linha.');
+      lerLoginDto({ email: 'teste@example.com', senha: 'a'.repeat(129) }),
+    ).toThrow('Informe sua senha.');
+  });
+});
+
+describe('lerTrocarSenhaDto', () => {
+  it('aceita senha atual e nova senha válida', () => {
+    expect(
+      lerTrocarSenhaDto({ senhaAtual: 'Provisoria#1', novaSenha: 'Nova#1234' }),
+    ).toEqual({ senhaAtual: 'Provisoria#1', novaSenha: 'Nova#1234' });
   });
 
-  it('rejeita senha da lista de bloqueio', () => {
+  it('exige a senha atual', () => {
+    expect(() => lerTrocarSenhaDto({ novaSenha: 'Nova#1234' })).toThrow(
+      'Informe a senha atual.',
+    );
+  });
+
+  it('aplica a regra de senha na nova senha', () => {
     expect(() =>
-      lerLoginDto({
-        email: 'teste@example.com',
-        senha: '12345678',
-      }),
+      lerTrocarSenhaDto({ senhaAtual: 'Provisoria#1', novaSenha: '12345678' }),
     ).toThrow('Esta senha é muito previsível. Escolha outra.');
+  });
+
+  it('recusa nova senha igual à atual', () => {
+    expect(() =>
+      lerTrocarSenhaDto({ senhaAtual: 'Nova#1234', novaSenha: 'Nova#1234' }),
+    ).toThrow('A nova senha precisa ser diferente da atual.');
   });
 });
 

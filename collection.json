@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hemocentro API",
-    "description": "As 34 rotas da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
+    "description": "As 35 rotas da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -16,6 +16,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
               }
             ],
             "url": {
@@ -27,10 +31,10 @@
                 "usuarios"
               ]
             },
-            "description": "Cria quem usa o sistema. 201; 409 se o email já existir. Não exige X-Usuario-Id (é por aqui que o primeiro usuário é criado). 400 se o colaboradorId não existir.",
+            "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"colaboradorId\": null\n}",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"colaboradorId\": null,\n  \"permissoes\": [\"REVISAR_FICHAS\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -84,6 +88,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
               }
             ],
             "url": {
@@ -96,10 +104,10 @@
                 "{{usuarioId}}"
               ]
             },
-            "description": "Altera nome e/ou colaboradorId (null desliga). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
+            "description": "Só gestor logado. Altera nome, colaboradorId (null desliga) e/ou trocarSenhaNoProximoLogin (true obriga o usuário a trocar a senha: a partir da próxima requisição dele, tudo dá 403 até usar \"Trocar senha\"). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir ou se trocarSenhaNoProximoLogin não for true/false. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"colaboradorId\": null\n}",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"colaboradorId\": null,\n  \"trocarSenhaNoProximoLogin\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1137,6 +1145,42 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"gestor@hemocentro.local\",\n  \"senha\": \"Senha#123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Trocar senha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/trocar-senha",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "trocar-senha"
+              ]
+            },
+            "description": "Troca a senha de quem está logado (faça antes o \"Entrar (login)\"). Obrigatória quando o login devolve usuario.trocarSenhaNoProximoLogin: true (usuário recém-cadastrado): até trocar, só esta rota, GET /auth/sessao e o logout funcionam. A nova senha segue a política (8 a 64 caracteres) e precisa ser diferente da atual. A sessão atual continua valendo; as outras sessões e os links de redefinição pendentes são encerrados. 200 { message }; 400 se a senha atual estiver errada ou a nova não servir; 401 sem sessão; 403 sem X-CSRF-Token; 429 depois de 5 senhas atuais erradas em 15 min (mesmo limite do login).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senhaAtual\": \"Provisoria#1\",\n  \"novaSenha\": \"MinhaSenha#2\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

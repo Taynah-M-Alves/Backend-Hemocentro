@@ -29,13 +29,13 @@ export class UsuariosController {
     return this.usuarios.listar(ativo !== 'false');
   }
 
-  /** POST /api/usuarios — cria funcionário sem senha definida. */
+  /** POST /api/usuarios — cria funcionário com senha provisória (troca obrigatória no 1º acesso). */
   @Post()
   criar(@Body() body: unknown) {
     return this.usuarios.criar(lerCadastrarFuncionarioDto(body));
   }
 
-  /** PATCH /api/usuarios/:id — nome e/ou colaboradorId */
+  /** PATCH /api/usuarios/:id — nome, colaboradorId e/ou trocarSenhaNoProximoLogin */
   @Patch(':id')
   alterar(@Param('id', ParseIntPipe) id: number, @Body() body: unknown) {
     return this.usuarios.alterar(id, lerAlterarUsuarioDto(body));

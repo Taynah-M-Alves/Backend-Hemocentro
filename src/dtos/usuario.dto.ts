@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  booleanoOpcional,
   corpo,
   idOpcional,
   textoObrigatorio,
@@ -19,6 +20,8 @@ export interface CriarUsuarioDto {
 export interface AlterarUsuarioDto {
   nome?: string;
   colaboradorId?: number | null;
+  /** true obriga a trocar a senha: vale já na próxima requisição do usuário */
+  trocarSenhaNoProximoLogin?: boolean;
 }
 
 export function lerCriarUsuarioDto(body: unknown): CriarUsuarioDto {
@@ -42,5 +45,6 @@ export function lerAlterarUsuarioDto(body: unknown): AlterarUsuarioDto {
   return {
     nome: textoOpcional(c, 'nome'),
     colaboradorId: idOpcional(c, 'colaboradorId'),
+    trocarSenhaNoProximoLogin: booleanoOpcional(c, 'trocarSenhaNoProximoLogin'),
   };
 }

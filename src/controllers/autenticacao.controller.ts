@@ -19,10 +19,15 @@ import {
   lerEsqueciSenhaDto,
   lerLoginDto,
   lerRedefinirSenhaDto,
+  lerTrocarSenhaDto,
 } from '../dtos/autenticacao.dto.js';
 import { AutenticacaoService } from '../services/autenticacao.service.js';
 import { SessaoService, tokenDoCookie } from '../services/sessao.service.js';
-import { RotaPublica } from '../decorators/rota-publica.decorator.js';
+import {
+  LiberadaNaTrocaDeSenha,
+  RotaPublica,
+} from '../decorators/rota-publica.decorator.js';
+import type { RequisicaoAutenticada } from '../guards/autenticacao.guard.js';
 import { origensPermitidas } from '../utils/origens.js';
 
 @Controller('auth')
@@ -67,6 +72,7 @@ export class AutenticacaoController {
     };
   }
 
+  @LiberadaNaTrocaDeSenha()
   @Get('sessao')
   @Header('Cache-Control', 'no-store')
   async consultarSessao(@Req() requisicao: Request) {
@@ -89,12 +95,14 @@ export class AutenticacaoController {
         email: sessao.usuario.email,
         perfil: sessao.usuario.perfil,
         permissoes: sessao.usuario.permissoes,
+        trocarSenhaNoProximoLogin: sessao.usuario.trocarSenhaNoProximoLogin,
       },
       csrfToken: sessao.csrfToken,
       expiraEm: sessao.expiraEm,
     };
   }
 
+  @LiberadaNaTrocaDeSenha()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
@@ -120,6 +128,21 @@ export class AutenticacaoController {
       sameSite: 'lax',
       path: '/api',
     });
+  }
+
+  /** Sessão, origem e CSRF já conferidos pelo guard global. */
+  @LiberadaNaTrocaDeSenha()
+  @Post('trocar-senha')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  async trocarSenha(@Body() body: unknown, @Req() requisicao: RequisicaoAutenticada) {
+    const { senhaAtual, novaSenha } = lerTrocarSenhaDto(body);
+    await this.autenticacao.trocarSenha(
+      requisicao.sessaoAutenticada!,
+      senhaAtual,
+      novaSenha,
+    );
+    return { message: 'Senha alterada.' };
   }
 
   @RotaPublica()

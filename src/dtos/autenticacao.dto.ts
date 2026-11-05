@@ -23,16 +23,29 @@ export function lerLoginDto(body: unknown): LoginDto {
   const dados = corpo(body);
   const email = lerEmail(dados);
 
-  // No login não se aplica a política de senha nova: só limita o tamanho para o Argon2
-  if (
-    typeof dados.senha !== 'string' ||
-    dados.senha.length === 0 ||
-    dados.senha.length > 128
-  ) {
-    throw new BadRequestException('Informe sua senha.');
-  }
+  return { email, senha: senhaAtual(dados.senha, 'Informe sua senha.') };
+}
 
-  return { email, senha: dados.senha };
+// Senha já cadastrada: não se aplica a política de senha nova, só limita o tamanho para o Argon2
+function senhaAtual(valor: unknown, mensagem: string): string {
+  if (typeof valor !== 'string' || valor.length === 0 || valor.length > 128) {
+    throw new BadRequestException(mensagem);
+  }
+  return valor;
+}
+
+/** POST /api/auth/trocar-senha { senhaAtual, novaSenha } */
+export function lerTrocarSenhaDto(body: unknown): {
+  senhaAtual: string;
+  novaSenha: string;
+} {
+  const dados = corpo(body);
+  const atual = senhaAtual(dados.senhaAtual, 'Informe a senha atual.');
+  const novaSenha = validarNovaSenha(dados.novaSenha);
+  if (novaSenha === atual) {
+    throw new BadRequestException('A nova senha precisa ser diferente da atual.');
+  }
+  return { senhaAtual: atual, novaSenha };
 }
 
 export const lerEsqueciSenhaDto = (body: unknown): string =>

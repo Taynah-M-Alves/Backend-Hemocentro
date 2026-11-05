@@ -1,9 +1,13 @@
 import type { CadastrarFuncionarioDto } from '../dtos/cadastro-funcionario.dto.js';
 import { PrismaService } from './prisma.service.js';
+import type { SenhaService } from './senha.service.js';
 import { UsuarioService } from './usuario.service.js';
 
 describe('UsuarioService — cadastro de funcionário', () => {
-  it('fixa perfil, estado inicial e ausência de senha no servidor', async () => {
+  const gerarHash = vi.fn().mockResolvedValue('hash-argon2');
+  const senhas = { gerarHash } as unknown as SenhaService;
+
+  it('fixa perfil, estado inicial, guarda só o hash e exige troca no primeiro acesso', async () => {
     const criar = vi.fn().mockResolvedValue({ id: 2 });
 
     const prisma = {
@@ -12,7 +16,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
       },
     } as unknown as PrismaService;
 
-    const service = new UsuarioService(prisma);
+    const service = new UsuarioService(prisma, senhas);
 
     // Simula campos indevidos chegando diretamente ao service.
     const dados = {
@@ -22,6 +26,8 @@ describe('UsuarioService — cadastro de funcionário', () => {
       perfil: 'GESTOR',
       ativo: false,
       senhaHash: 'hash-injetado',
+      trocarSenhaNoProximoLogin: false,
+      senha: 'provisoria-123',
     } as unknown as CadastrarFuncionarioDto;
 
     await service.criar(dados);
@@ -35,13 +41,15 @@ describe('UsuarioService — cadastro de funcionário', () => {
           permissoes: ['REVISAR_FICHAS'],
           perfil: 'COLABORADOR',
           ativo: true,
-          senhaHash: null,
+          senhaHash: 'hash-argon2',
+          trocarSenhaNoProximoLogin: true,
         },
       }),
     );
 
     const consulta = criar.mock.calls[0]![0];
 
+    expect(gerarHash).toHaveBeenCalledWith('provisoria-123');
     expect(consulta.select).not.toHaveProperty('senhaHash');
   });
 
@@ -58,7 +66,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
       },
     } as unknown as PrismaService;
 
-    const service = new UsuarioService(prisma);
+    const service = new UsuarioService(prisma, senhas);
 
     await expect(
       service.criar({
@@ -66,6 +74,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
         email: 'funcionaria@example.invalid',
         colaboradorId: 999,
         permissoes: [],
+        senha: 'provisoria-123',
       }),
     ).rejects.toThrow('Colaborador 999 não está cadastrado.');
 

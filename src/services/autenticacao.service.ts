@@ -165,6 +165,7 @@ export class AutenticacaoService implements OnModuleInit {
         senhaHash: true,
         perfil: true,
         permissoes: true,
+        trocarSenhaNoProximoLogin: true,
       },
     });
 
@@ -190,9 +191,49 @@ export class AutenticacaoService implements OnModuleInit {
         email: usuario.email,
         perfil: usuario.perfil,
         permissoes: usuario.permissoes,
+        trocarSenhaNoProximoLogin: usuario.trocarSenhaNoProximoLogin,
       },
       sessao,
     };
+  }
+
+  /**
+   * Troca a senha de quem está logado (obrigatório quando trocarSenhaNoProximoLogin).
+   * Confere a senha atual com o mesmo limite do login e derruba as outras sessões.
+   */
+  async trocarSenha(
+    sessao: { id: string; usuario: { id: number; email: string } },
+    senhaAtual: string,
+    novaSenha: string,
+  ): Promise<void> {
+    const { id: usuarioId, email } = sessao.usuario;
+    this.loginPorEmail.tentar(email);
+
+    const usuario = await this.prisma.usuario.findUniqueOrThrow({
+      where: { id: usuarioId },
+      select: { senhaHash: true },
+    });
+    if (!(await this.senhas.verificar(senhaAtual, usuario.senhaHash))) {
+      throw new BadRequestException('Senha atual incorreta.');
+    }
+    this.loginPorEmail.desfazer(email);
+
+    const senhaHash = await this.senhas.gerarHash(novaSenha);
+    const agora = new Date();
+    await this.prisma.$transaction([
+      this.prisma.usuario.update({
+        where: { id: usuarioId },
+        data: { senhaHash, trocarSenhaNoProximoLogin: false },
+      }),
+      this.prisma.sessaoUsuario.updateMany({
+        where: { usuarioId, revogadaEm: null, id: { not: sessao.id } },
+        data: { revogadaEm: agora },
+      }),
+      this.prisma.tokenSenha.updateMany({
+        where: { usuarioId, usadoEm: null },
+        data: { usadoEm: agora },
+      }),
+    ]);
   }
 
   /** 429 se este IP já pediu nova senha demais (vale para qualquer e-mail, existente ou não). */
@@ -279,7 +320,7 @@ export class AutenticacaoService implements OnModuleInit {
       });
       await tx.usuario.update({
         where: { id: usuarioId },
-        data: { senhaHash },
+        data: { senhaHash, trocarSenhaNoProximoLogin: false },
       });
       await tx.sessaoUsuario.updateMany({
         where: { usuarioId, revogadaEm: null },

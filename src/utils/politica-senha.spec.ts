@@ -8,20 +8,27 @@ describe('validarNovaSenha', () => {
     },
   );
 
-  it.each([' Abc!2345', 'Abc!2345 ', 'Abc! 2345', 'Abc!\t2345', 'Abc!\n2345'])(
-    'rejeita espaços em branco: %j',
+  it.each(['minha frase de acesso', 'Abc! 2345', 'a'.repeat(64)])(
+    'aceita frases-senha com espaços e até 64 caracteres: %j',
+    (senha) => {
+      expect(validarNovaSenha(senha)).toBe(senha);
+    },
+  );
+
+  it.each(['Abc!\t2345', 'Abc!\n2345'])(
+    'rejeita tabulação e quebra de linha: %j',
     (senha) => {
       expect(() => validarNovaSenha(senha)).toThrow(
-        'A senha não pode conter espaços ou quebras de linha.',
+        'A senha não pode conter caracteres de controle ou formatação invisíveis.',
       );
     },
   );
 
-  it.each(['Abc!234', 'Abc!2345678'])(
+  it.each(['Abc!234', 'a'.repeat(65)])(
     'rejeita comprimento fora da faixa: %j',
     (senha) => {
       expect(() => validarNovaSenha(senha)).toThrow(
-        'A senha deve ter entre 8 e 10 caracteres.',
+        'A senha deve ter entre 8 e 64 caracteres.',
       );
     },
   );

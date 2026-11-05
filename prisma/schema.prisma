@@ -315,6 +315,8 @@ model Usuario {
   perfil        PerfilUsuario     @default(COLABORADOR)
   permissoes    PermissaoUsuario[] @default([])
   colaboradorId Int?              @unique @map("colaborador_id")
+  /// true: o login só libera a troca de senha (POST /api/auth/trocar-senha) até ele trocar
+  trocarSenhaNoProximoLogin Boolean @default(false) @map("trocar_senha_no_proximo_login")
 
   colaborador     Colaborador?        @relation(fields: [colaboradorId], references: [id])
   lotesEnviados   Lote[]

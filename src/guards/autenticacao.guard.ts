@@ -7,7 +7,10 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { timingSafeEqual } from 'node:crypto';
-import { ROTA_PUBLICA } from '../decorators/rota-publica.decorator.js';
+import {
+  LIBERADA_NA_TROCA_DE_SENHA,
+  ROTA_PUBLICA,
+} from '../decorators/rota-publica.decorator.js';
 import { SessaoService } from '../services/sessao.service.js';
 import { origensPermitidas } from '../utils/origens.js';
 
@@ -78,6 +81,21 @@ export class AutenticacaoGuard implements CanActivate {
       ) {
         throw new ForbiddenException('Token de proteção inválido.');
       }
+    }
+
+    // Senha provisória: até trocar, só a troca de senha, a sessão e o logout funcionam
+    if (
+      sessao.usuario.trocarSenhaNoProximoLogin &&
+      !this.reflector.get<boolean>(
+        LIBERADA_NA_TROCA_DE_SENHA,
+        contexto.getHandler(),
+      )
+    ) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        message: 'Troque a sua senha antes de continuar.',
+        trocarSenhaNoProximoLogin: true,
+      });
     }
 
     requisicao.sessaoAutenticada = sessao;

@@ -4,6 +4,7 @@ const cadastroValido = () => ({
   nome: 'Funcionária de teste',
   email: 'funcionaria@example.invalid',
   permissoes: ['REVISAR_FICHAS'],
+  senha: 'provisoria-123',
 });
 
 describe('lerCadastrarFuncionarioDto', () => {
@@ -62,7 +63,17 @@ describe('lerCadastrarFuncionarioDto', () => {
     ).toThrow('"permissoes" precisa ser uma lista.');
   });
 
-  it.each(['perfil', 'senha', 'senhaHash', 'ativo'])(
+  it('exige a senha e aplica a política de senha', () => {
+    const { senha: _senha, ...semSenha } = cadastroValido();
+    expect(() => lerCadastrarFuncionarioDto(semSenha)).toThrow(
+      'Informe a nova senha.',
+    );
+    expect(() =>
+      lerCadastrarFuncionarioDto({ ...cadastroValido(), senha: '1234567' }),
+    ).toThrow('A senha deve ter entre 8 e 64 caracteres.');
+  });
+
+  it.each(['perfil', 'senhaHash', 'ativo', 'trocarSenhaNoProximoLogin'])(
     'rejeita o campo não permitido: %s',
     (campo) => {
       expect(() =>

@@ -7,6 +7,7 @@ import type { AlterarUsuarioDto } from '../dtos/usuario.dto.js';
 import type { CadastrarFuncionarioDto } from '../dtos/cadastro-funcionario.dto.js';
 import { PerfilUsuario } from '../generated/prisma/enums.js';
 import { PrismaService } from './prisma.service.js';
+import { SenhaService } from './senha.service.js';
 
 const USUARIO_PUBLICO = {
   select: {
@@ -16,6 +17,7 @@ const USUARIO_PUBLICO = {
     ativo: true,
     perfil: true,
     permissoes: true,
+    trocarSenhaNoProximoLogin: true,
     colaboradorId: true,
     colaborador: {
       select: {
@@ -28,7 +30,10 @@ const USUARIO_PUBLICO = {
 
 @Injectable()
 export class UsuarioService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly senhas: SenhaService,
+  ) {}
 
   listar(ativo: boolean) {
     return this.prisma.usuario.findMany({
@@ -38,7 +43,8 @@ export class UsuarioService {
     });
   }
 
-  /** E-mail ou vínculo repetido são tratados como 409 pelo filtro do Prisma. */
+  /** E-mail ou vínculo repetido são tratados como 409 pelo filtro do Prisma.
+   *  A senha é provisória: o funcionário precisa trocá-la no primeiro acesso. */
   async criar(dto: CadastrarFuncionarioDto) {
     await this.exigirColaborador(dto.colaboradorId);
 
@@ -50,7 +56,8 @@ export class UsuarioService {
         permissoes: dto.permissoes,
         perfil: PerfilUsuario.COLABORADOR,
         ativo: true,
-        senhaHash: null,
+        senhaHash: await this.senhas.gerarHash(dto.senha),
+        trocarSenhaNoProximoLogin: true,
       },
       ...USUARIO_PUBLICO,
     });
