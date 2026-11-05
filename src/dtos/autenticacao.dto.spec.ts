@@ -1,4 +1,4 @@
-import { lerLoginDto } from './autenticacao.dto.js';
+import { lerLoginDto, lerRedefinirSenhaDto } from './autenticacao.dto.js';
 
 describe('lerLoginDto', () => {
   it('normaliza o e-mail e preserva a senha', () => {
@@ -56,5 +56,28 @@ describe('lerLoginDto', () => {
         senha: '12345678',
       }),
     ).toThrow('Esta senha é muito previsível. Escolha outra.');
+  });
+});
+
+describe('lerRedefinirSenhaDto', () => {
+  const token = 'a'.repeat(64);
+
+  it('aceita token de 64 hexadecimais e senha válida', () => {
+    expect(lerRedefinirSenhaDto({ token, senha: 'Nova#123' })).toEqual({
+      token,
+      senha: 'Nova#123',
+    });
+  });
+
+  it.each(['', 'abc', 'G'.repeat(64), 123])('rejeita token %j', (t) => {
+    expect(() => lerRedefinirSenhaDto({ token: t, senha: 'Nova#123' })).toThrow(
+      'Link inválido ou expirado. Peça um novo.',
+    );
+  });
+
+  it('aplica a regra de senha', () => {
+    expect(() => lerRedefinirSenhaDto({ token, senha: '12345678' })).toThrow(
+      'Esta senha é muito previsível. Escolha outra.',
+    );
   });
 });

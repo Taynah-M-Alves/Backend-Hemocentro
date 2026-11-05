@@ -9,15 +9,13 @@ import { UPLOADS_DIR } from '../config/upload.config.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { StatusFicha } from '../generated/prisma/enums.js';
 import { mensagemDeErro } from '../utils/erros.js';
-import { AiExtractionService, FalhaLeituraError } from './ai-extraction.service.js';
+import { AiExtractionService } from './ai-extraction.service.js';
 import { DocumentoImagemService } from './documento-imagem.service.js';
 import { PacienteService } from './paciente.service.js';
 import { PrismaService } from './prisma.service.js';
 
 /** De quanto em quanto tempo a fila procura fichas novas (além do aviso logo após o upload). */
 const INTERVALO_MS = 5_000;
-/** Espera antes de cada nova tentativa automática após falha passageira: 1, 5 e 15 min. */
-const ESPERAS_MS = [60_000, 5 * 60_000, 15 * 60_000];
 
 /**
  * Fila da IA: lê as fichas em segundo plano, uma por vez. A fila é o próprio banco
@@ -108,6 +106,7 @@ export class FilaLeituraService implements OnApplicationBootstrap, OnApplication
             dadosExtraidos: dados as unknown as Prisma.InputJsonValue,
             pacienteSugeridoId: sugerido?.id ?? null,
             erroLeitura: null,
+            falhouEm: null,
             proximaTentativaEm: null,
           },
         }),
@@ -126,45 +125,28 @@ export class FilaLeituraService implements OnApplicationBootstrap, OnApplication
     return true;
   }
 
-  /**
-   * Falha passageira (sobrecarga, rede, tempo esgotado) volta sozinha para a fila, até 3 vezes.
-   * Falha definitiva (PDF corrompido, nome ilegível para todas as IAs, sem chave) ou a 4ª
-   * falha vai para FALHA_LEITURA, que só sai por reprocessamento manual.
-   */
+  /** Qualquer falha (inclusive sobrecarga ou rede) vai para FALHA_LEITURA: só o reprocessar lê de novo. */
   private async registrarFalha(
     ficha: { id: number; tentativasLeitura: number },
     alvo: { fichaId: number; documentoId: number; loteId: number },
     err: unknown,
   ) {
     const motivo = mensagemDeErro(err);
-    const tentativas = ficha.tentativasLeitura + 1;
-    const espera =
-      err instanceof FalhaLeituraError && err.transitoria
-        ? ESPERAS_MS[tentativas - 1]
-        : undefined;
 
     await this.prisma.$transaction([
       this.prisma.fichaDigitalizada.update({
         where: { id: ficha.id },
-        data: espera
-          ? {
-              status: StatusFicha.ENVIADA,
-              tentativasLeitura: tentativas,
-              proximaTentativaEm: new Date(Date.now() + espera),
-            }
-          : {
-              status: StatusFicha.FALHA_LEITURA,
-              tentativasLeitura: tentativas,
-              erroLeitura: motivo,
-              proximaTentativaEm: null,
-            },
+        data: {
+          status: StatusFicha.FALHA_LEITURA,
+          tentativasLeitura: ficha.tentativasLeitura + 1,
+          erroLeitura: motivo,
+          falhouEm: new Date(),
+        },
       }),
       this.prisma.eventoAuditoria.create({
         data: { tipo: 'LEITURA_FALHOU', ...alvo, justificativa: motivo },
       }),
     ]);
-    this.logger.error(
-      `Ficha ${ficha.id}: ${motivo} ${espera ? `Nova tentativa em ${espera / 60_000} min.` : '→ FALHA_LEITURA'}`,
-    );
+    this.logger.error(`Ficha ${ficha.id}: ${motivo} → FALHA_LEITURA`);
   }
 }

@@ -98,6 +98,9 @@ export class FichaService {
         id: f.id,
         codigo: codigoFicha(f.id),
         status: f.status,
+        documentoId: f.documentoId,
+        erroLeitura: f.erroLeitura,
+        falhouEm: f.falhouEm,
         paciente: dados && {
           nome: dados.paciente.nome,
           dataNascimento: dados.paciente.dataNascimento,
@@ -433,6 +436,7 @@ export class FichaService {
       status: f.status,
       provedorIa: f.documento.provedorIa,
       erroLeitura: f.erroLeitura,
+      falhouEm: f.falhouEm,
       documento: {
         id: f.documento.id,
         nomeOriginal: f.documento.nomeOriginal,

@@ -161,4 +161,22 @@ describe('Cadastro pelo gestor (e2e)', () => {
 
     expect(criar).not.toHaveBeenCalled();
   });
+
+  it('permite chegar à validação do esqueci-senha sem sessão', () =>
+    request(app.getHttpServer())
+      .post('/api/auth/esqueci-senha')
+      .send({})
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain('email');
+      }));
+
+  it('permite chegar à validação da redefinição sem sessão', () =>
+    request(app.getHttpServer())
+      .post('/api/auth/redefinir-senha')
+      .send({})
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Link inválido ou expirado. Peça um novo.');
+      }));
 });

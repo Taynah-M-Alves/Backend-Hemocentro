@@ -24,22 +24,6 @@ const TIMEOUT_MS = 500_000;
  */
 const MAX_TOKENS = 20000;
 const TEMPERATURA = 0.1;
-const MAX_RETRIES = 2;
-const ESPERA_INICIAL_MS = 1200;
-const STATUS_TRANSITORIOS = [429, 500, 502, 503, 504];
-/** Erros de rede e tempo esgotado também passam se tentar de novo mais tarde. */
-const MENSAGENS_TRANSITORIAS =
-  /high demand|timed? ?out|timeout|aborted|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up/i;
-
-/** Erro de "todas as IAs falharam". `transitoria` = alguma falhou por algo passageiro. */
-export class FalhaLeituraError extends Error {
-  constructor(
-    message: string,
-    readonly transitoria: boolean,
-  ) {
-    super(message);
-  }
-}
 
 /** Modelo usado quando o *_MODEL correspondente não está no .env. Todos precisam ler imagens. */
 const MODELO_PADRAO: Record<ProvedorIa, string> = {
@@ -66,7 +50,7 @@ export class AiExtractionService {
   private readonly provedores: Provedor[];
 
   constructor() {
-    // maxRetries: 0 → quem decide quando tentar de novo é o chamarComRetry, igual para todas
+    // maxRetries: 0 → cada IA é chamada uma vez só; quem lê de novo é o usuário (reprocessar)
     const env = process.env;
     const gemini = env.GEMINI_API_KEY
       ? new GoogleGenerativeAI(env.GEMINI_API_KEY)
@@ -137,12 +121,11 @@ export class AiExtractionService {
 
   /**
    * Envia as imagens das páginas para as IAs, na ordem de `provedores`.
-   * A primeira que devolver uma ficha válida vence. Se todas falharem, lança
-   * FalhaLeituraError com o motivo de cada uma.
+   * Cada IA é chamada uma vez; a primeira que devolver uma ficha válida vence.
+   * Se todas falharem, lança erro com o motivo de cada uma.
    */
   async extrairFicha(paginas: PaginaImagem[]): Promise<ExtracaoIA> {
     const tentativas: TentativaExtracao[] = [];
-    let algumaTransitoria = false;
 
     for (const { id, nome, extrair } of this.provedores) {
       if (!extrair) {
@@ -158,7 +141,7 @@ export class AiExtractionService {
       const inicio = Date.now();
       try {
         this.logger.log(`Enviando ${paginas.length} página(s) ao ${nome}…`);
-        const dados = await this.chamarComRetry(() => extrair(paginas));
+        const dados = await extrair(paginas);
         tentativas.push({
           provedor: id,
           sucesso: true,
@@ -171,7 +154,6 @@ export class AiExtractionService {
         return { dados, provedor: id, tentativas };
       } catch (err) {
         const erro = mensagemDeErro(err);
-        if (this.isErroTransitorio(err)) algumaTransitoria = true;
         tentativas.push({
           provedor: id,
           sucesso: false,
@@ -185,37 +167,7 @@ export class AiExtractionService {
     const detalhes = tentativas
       .map((t) => `${t.provedor}: ${t.erro}`)
       .join(' | ');
-    throw new FalhaLeituraError(
-      `Todas as IAs falharam. Detalhes: [${detalhes}]`,
-      algumaTransitoria,
-    );
-  }
-
-  /** Repete a chamada em erros temporários (sobrecarga, limite de uso), esperando cada vez mais. */
-  private async chamarComRetry<T>(fn: () => Promise<T>): Promise<T> {
-    let espera = ESPERA_INICIAL_MS;
-    for (let tentativa = 1; ; tentativa++) {
-      try {
-        return await fn();
-      } catch (err) {
-        if (tentativa > MAX_RETRIES || !this.isErroTransitorio(err)) throw err;
-        this.logger.warn(
-          `Erro transitório. Tentativa ${tentativa}/${MAX_RETRIES}, aguardando ${espera}ms…`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, espera));
-        espera *= 2;
-      }
-    }
-  }
-
-  private isErroTransitorio(err: unknown): boolean {
-    const status = (err as { status?: number }).status;
-    if (status !== undefined) return STATUS_TRANSITORIOS.includes(status);
-    const msg = mensagemDeErro(err);
-    return (
-      STATUS_TRANSITORIOS.some((s) => msg.includes(String(s))) ||
-      MENSAGENS_TRANSITORIAS.test(msg)
-    );
+    throw new Error(`Todas as IAs falharam. Detalhes: [${detalhes}]`);
   }
 
   // ── Provedores ────────────────────────────────────────────────────────────

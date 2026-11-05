@@ -25,6 +25,7 @@ import { UsuarioService } from './services/usuario.service.js';
 import { AutenticacaoService } from './services/autenticacao.service.js';
 import { SenhaService } from './services/senha.service.js';
 import { SessaoService } from './services/sessao.service.js';
+import { EmailService } from './services/email.service.js';
 import { AutenticacaoController } from './controllers/autenticacao.controller.js';
 import { APP_GUARD } from '@nestjs/core';
 import { AutenticacaoGuard } from './guards/autenticacao.guard.js';
@@ -62,10 +63,7 @@ import { PermissoesGuard } from './guards/permissoes.guard.js';
     AutenticacaoService,
     SenhaService,
     SessaoService,
-    {
-      provide: APP_GUARD,
-      useClass: AutenticacaoGuard,
-    },
+    EmailService,
     SomenteGestorGuard,
     {
       provide: APP_GUARD,

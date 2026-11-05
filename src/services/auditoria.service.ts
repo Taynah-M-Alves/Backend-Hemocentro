@@ -7,6 +7,7 @@ import {
   codigoFicha,
   codigoLote,
   contem,
+  dataHoraLocal,
   paraData,
 } from '../utils/formatos.js';
 import { paginado } from '../utils/paginacao.js';
@@ -102,7 +103,7 @@ export class AuditoriaService {
     ];
     const linhas = eventos.map((e) => [
       codigoEvento(e.id),
-      e.ocorridoEm.toISOString(),
+      dataHoraLocal(e.ocorridoEm),
       e.tipo,
       e.usuario?.nome ?? 'Sistema',
       e.fichaId ? codigoFicha(e.fichaId) : '',

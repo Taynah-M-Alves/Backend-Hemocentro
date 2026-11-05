@@ -5,7 +5,7 @@ import { PrismaService } from './prisma.service.js';
 const DURACAO_SESSAO_MS = 8 * 60 * 60 * 1000;
 const FORMATO_TOKEN = /^[a-f0-9]{64}$/;
 
-function hashToken(token: string): string {
+export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 

@@ -19,6 +19,27 @@ export function dataSemHora(data: Date | null): string | null {
   return data ? data.toISOString().slice(0, 10) : null;
 }
 
+/** Fuso das datas que o sistema devolve: FUSO_HORARIO do .env (padrão: Cuiabá). */
+const fuso = () => process.env.FUSO_HORARIO || 'America/Cuiaba';
+
+/** "04/11/2026, 22:49:27" no fuso do sistema. Para mensagens e planilhas. */
+export const dataHoraLocal = (data: Date) =>
+  data.toLocaleString('pt-BR', { timeZone: fuso() });
+
+/**
+ * "2026-11-04T22:49:27.932-04:00": ISO com o deslocamento do fuso, para as respostas JSON.
+ * Data sem hora (@db.Date, meia-noite UTC) fica como está, senão voltaria um dia.
+ */
+export function isoLocal(data: Date): string {
+  if (data.getTime() % 86_400_000 === 0) return data.toISOString();
+  const gmt =
+    data.toLocaleString('en', { timeZone: fuso(), timeZoneName: 'longOffset' }).split('GMT')[1] ||
+    '+00:00';
+  const [h, m] = gmt.split(':').map(Number);
+  const deslocamentoMs = (h * 60 + Math.sign(h) * m) * 60_000;
+  return new Date(data.getTime() + deslocamentoMs).toISOString().slice(0, -1) + gmt;
+}
+
 /** Idade em anos completos hoje. */
 export function idade(nascimento: Date): number {
   const hoje = new Date();
