@@ -168,6 +168,15 @@ export class FichaService {
             include: { usuario: { select: { id: true, nome: true } } },
           })
         : null;
+    // Motivo da última pendência, para quem retoma a revisão saber o que falta resolver.
+    const comPendencia: StatusFicha[] = [StatusFicha.COM_PENDENCIA, StatusFicha.EM_REVISAO];
+    const pendencia = comPendencia.includes(ficha.status)
+      ? await this.prisma.eventoAuditoria.findFirst({
+          where: { fichaId: id, tipo: 'PENDENCIA_SINALIZADA' },
+          orderBy: { ocorridoEm: 'desc' },
+          include: { usuario: { select: { id: true, nome: true } } },
+        })
+      : null;
     return {
       ...this.formatar(ficha),
       recusa: recusa && {
@@ -175,6 +184,11 @@ export class FichaService {
         observacao: recusa.justificativa,
         recusadoPor: recusa.usuario,
         recusadoEm: recusa.ocorridoEm,
+      },
+      pendencia: pendencia && {
+        motivo: pendencia.justificativa,
+        sinalizadoPor: pendencia.usuario,
+        sinalizadoEm: pendencia.ocorridoEm,
       },
     };
   }
