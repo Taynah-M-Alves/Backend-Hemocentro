@@ -64,6 +64,7 @@ export class DocumentoService {
           tentativasLeitura: 0,
           proximaTentativaEm: null,
           erroLeitura: null,
+          falhouEm: null,
         },
       }),
       this.prisma.eventoAuditoria.create({

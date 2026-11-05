@@ -346,6 +346,7 @@ model FichaDigitalizada {
   documentoId        Int         @unique @map("documento_id") // um arquivo = uma ficha
   status             StatusFicha @default(ENVIADA)
   erroLeitura        String?     @map("erro_leitura") @db.Text // por que a IA não leu
+  falhouEm           DateTime?   @map("falhou_em") // quando a IA falhou (junto com erroLeitura)
   tentativasLeitura  Int         @default(0) @map("tentativas_leitura")
   proximaTentativaEm DateTime?   @map("proxima_tentativa_em")
   dataAtendimento    DateTime?   @map("data_atendimento") @db.Date

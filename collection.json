@@ -418,7 +418,7 @@
                 }
               ]
             },
-            "description": "Fila com filtros e contadores. Sem \"status\", traz todos menos VALIDADA."
+            "description": "Fila com filtros e contadores. Sem \"status\", traz todos menos VALIDADA. Cada item traz documentoId, erroLeitura e falhouEm (null se a última leitura não falhou)."
           }
         },
         {
