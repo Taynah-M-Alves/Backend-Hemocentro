@@ -38,7 +38,6 @@ describe('Proteção das APIs e validação do upload (e2e)', () => {
                   email: 'gestor@example.invalid',
                   ativo: true,
                   perfil: 'GESTOR',
-                  permissoes: [],
                 },
               }
             : null,

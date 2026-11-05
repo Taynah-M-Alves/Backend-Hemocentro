@@ -4,7 +4,6 @@ import { SomenteGestorGuard } from './somente-gestor.guard.js';
 
 function contextoComUsuario(usuario?: {
   perfil: string;
-  permissoes?: string[];
 }): ExecutionContext {
   return {
     switchToHttp: () => ({
@@ -21,22 +20,14 @@ describe('SomenteGestorGuard', () => {
   it('permite acesso ao gestor', () => {
     const contexto = contextoComUsuario({
       perfil: 'GESTOR',
-      permissoes: [],
     });
 
     expect(guard.canActivate(contexto)).toBe(true);
   });
 
-  it('recusa colaborador mesmo com permissões operacionais', () => {
+  it('recusa colaborador', () => {
     const contexto = contextoComUsuario({
       perfil: 'COLABORADOR',
-      permissoes: [
-        'VISUALIZAR_DASHBOARD',
-        'ENVIAR_DOCUMENTOS',
-        'REVISAR_FICHAS',
-        'CONSULTAR_PRONTUARIOS',
-        'CONSULTAR_AUDITORIA',
-      ],
     });
 
     expect(() => guard.canActivate(contexto)).toThrow(ForbiddenException);

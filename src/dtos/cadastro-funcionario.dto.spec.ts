@@ -3,19 +3,17 @@ import { lerCadastrarFuncionarioDto } from './cadastro-funcionario.dto.js';
 const cadastroValido = () => ({
   nome: 'Funcionária de teste',
   email: 'funcionaria@example.invalid',
-  permissoes: ['REVISAR_FICHAS'],
   senha: 'provisoria-123',
 });
 
 describe('lerCadastrarFuncionarioDto', () => {
-  it('normaliza o e-mail e aceita permissões válidas', () => {
+  it('normaliza o e-mail', () => {
     const resultado = lerCadastrarFuncionarioDto({
       ...cadastroValido(),
       email: '  FUNCIONARIA@EXAMPLE.INVALID  ',
     });
 
     expect(resultado.email).toBe('funcionaria@example.invalid');
-    expect(resultado.permissoes).toEqual(['REVISAR_FICHAS']);
   });
 
   it('aceita vínculo com colaborador', () => {
@@ -25,42 +23,6 @@ describe('lerCadastrarFuncionarioDto', () => {
     });
 
     expect(resultado.colaboradorId).toBe(2);
-  });
-
-  it('permite cadastro sem permissões operacionais', () => {
-    const resultado = lerCadastrarFuncionarioDto({
-      ...cadastroValido(),
-      permissoes: [],
-    });
-
-    expect(resultado.permissoes).toEqual([]);
-  });
-
-  it('remove permissões repetidas', () => {
-    const resultado = lerCadastrarFuncionarioDto({
-      ...cadastroValido(),
-      permissoes: ['REVISAR_FICHAS', 'REVISAR_FICHAS'],
-    });
-
-    expect(resultado.permissoes).toEqual(['REVISAR_FICHAS']);
-  });
-
-  it('rejeita permissão desconhecida', () => {
-    expect(() =>
-      lerCadastrarFuncionarioDto({
-        ...cadastroValido(),
-        permissoes: ['ADMINISTRAR_TUDO'],
-      }),
-    ).toThrow('A lista contém uma permissão inválida.');
-  });
-
-  it('exige uma lista de permissões', () => {
-    expect(() =>
-      lerCadastrarFuncionarioDto({
-        ...cadastroValido(),
-        permissoes: 'REVISAR_FICHAS',
-      }),
-    ).toThrow('"permissoes" precisa ser uma lista.');
   });
 
   it('exige a senha e aplica a política de senha', () => {
@@ -73,7 +35,7 @@ describe('lerCadastrarFuncionarioDto', () => {
     ).toThrow('A senha deve ter entre 8 e 64 caracteres.');
   });
 
-  it.each(['perfil', 'senhaHash', 'ativo', 'trocarSenhaNoProximoLogin'])(
+  it.each(['perfil', 'permissoes', 'senhaHash', 'ativo', 'trocarSenhaNoProximoLogin'])(
     'rejeita o campo não permitido: %s',
     (campo) => {
       expect(() =>

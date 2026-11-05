@@ -164,7 +164,6 @@ export class AutenticacaoService implements OnModuleInit {
         ativo: true,
         senhaHash: true,
         perfil: true,
-        permissoes: true,
         trocarSenhaNoProximoLogin: true,
       },
     });
@@ -190,7 +189,6 @@ export class AutenticacaoService implements OnModuleInit {
         nome: usuario.nome,
         email: usuario.email,
         perfil: usuario.perfil,
-        permissoes: usuario.permissoes,
         trocarSenhaNoProximoLogin: usuario.trocarSenhaNoProximoLogin,
       },
       sessao,

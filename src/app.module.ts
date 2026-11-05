@@ -30,7 +30,6 @@ import { AutenticacaoController } from './controllers/autenticacao.controller.js
 import { APP_GUARD } from '@nestjs/core';
 import { AutenticacaoGuard } from './guards/autenticacao.guard.js';
 import { SomenteGestorGuard } from './guards/somente-gestor.guard.js';
-import { PermissoesGuard } from './guards/permissoes.guard.js';
 
 @Module({
   controllers: [
@@ -68,10 +67,6 @@ import { PermissoesGuard } from './guards/permissoes.guard.js';
     {
       provide: APP_GUARD,
       useClass: AutenticacaoGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: PermissoesGuard,
     },
   ],
 })

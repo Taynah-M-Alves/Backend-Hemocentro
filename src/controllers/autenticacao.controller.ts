@@ -94,7 +94,6 @@ export class AutenticacaoController {
         nome: sessao.usuario.nome,
         email: sessao.usuario.email,
         perfil: sessao.usuario.perfil,
-        permissoes: sessao.usuario.permissoes,
         trocarSenhaNoProximoLogin: sessao.usuario.trocarSenhaNoProximoLogin,
       },
       csrfToken: sessao.csrfToken,

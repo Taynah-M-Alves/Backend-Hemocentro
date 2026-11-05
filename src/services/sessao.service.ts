@@ -58,7 +58,6 @@ export class SessaoService {
             email: true,
             ativo: true,
             perfil: true,
-            permissoes: true,
             trocarSenhaNoProximoLogin: true,
           },
         },

@@ -19,11 +19,9 @@ import {
 import { LoteService } from '../services/lote.service.js';
 import { paginacao } from '../utils/paginacao.js';
 import { UsuarioId } from '../decorators/usuario-id.decorator.js';
-import { PermissoesPermitidas } from '../decorators/permissoes-permitidas.decorator.js';
 
 /** Tela Upload. */
 @Controller('lotes')
-@PermissoesPermitidas('ENVIAR_DOCUMENTOS')
 export class LotesController {
   constructor(private readonly lotes: LoteService) {}
 

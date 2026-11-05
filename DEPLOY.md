@@ -1,6 +1,6 @@
 # Deploy do backend do Hemocentro
 
-Roteiro para instalar o sistema no servidor do hemocentro. A explicação completa (glossário, ciclo de status das fichas, permissões e todas as rotas da API) está em `docs/Documentação da API - Hemocentro.docx`.
+Roteiro para instalar o sistema no servidor do hemocentro. A explicação completa (glossário, ciclo de status das fichas, perfis e todas as rotas da API) está em `docs/Documentação da API - Hemocentro.docx`.
 
 > **Atenção antes do deploy: o frontend (projeto_hemocentro) ainda não usa este login. Ele não chama POST /api/auth/login, ainda manda o header antigo X-Usuario-Id e não envia cookie nem X-CSRF-Token. Com o backend atual, todas as telas, menos Esqueci a senha e Redefinir senha, vão receber 401. O frontend precisa ser ajustado (fetch com credentials: "include", guardar o csrfToken e mandar X-CSRF-Token, e VUE_APP_EXIGIR_LOGIN=true) antes de ir para produção.**
 
@@ -261,7 +261,7 @@ sudo mkdir -p /var/www/hemocentro
 sudo cp -r dist/* /var/www/hemocentro/
 ```
 
-Lembre do aviso em Login, perfis e permissões: o frontend precisa do ajuste de login antes deste passo.
+Lembre do aviso em Login e perfis: o frontend precisa do ajuste de login antes deste passo.
 
 ### Passo 11 — Proxy reverso (nginx) com HTTPS
 

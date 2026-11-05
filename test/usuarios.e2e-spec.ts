@@ -4,7 +4,6 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configurarApp } from '../src/configurar-app.js';
-import { PermissaoUsuario } from '../src/generated/prisma/enums.js';
 import { FilaLeituraService } from '../src/services/fila-leitura.service.js';
 import { PrismaService } from '../src/services/prisma.service.js';
 import { SessaoService } from '../src/services/sessao.service.js';
@@ -18,7 +17,6 @@ const CSRF = 'b'.repeat(64);
 const cadastro = {
   nome: 'Funcionário de teste',
   email: 'funcionario@example.invalid',
-  permissoes: ['REVISAR_FICHAS'],
   senha: 'provisoria-123',
 };
 
@@ -27,6 +25,8 @@ describe('Cadastro pelo gestor (e2e)', () => {
 
   const criar = vi.fn();
   const alterar = vi.fn();
+  const listar = vi.fn().mockResolvedValue([]);
+  const definirAtivo = vi.fn();
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -37,7 +37,7 @@ describe('Cadastro pelo gestor (e2e)', () => {
       .overrideProvider(FilaLeituraService)
       .useValue({ processar: () => undefined })
       .overrideProvider(UsuarioService)
-      .useValue({ criar, alterar })
+      .useValue({ criar, alterar, listar, definirAtivo })
       .overrideProvider(SessaoService)
       .useValue({
         buscar: async (token: string | undefined) => {
@@ -63,7 +63,6 @@ describe('Cadastro pelo gestor (e2e)', () => {
               email: 'usuario@example.invalid',
               ativo: true,
               perfil: gestor ? 'GESTOR' : 'COLABORADOR',
-              permissoes: Object.values(PermissaoUsuario),
               trocarSenhaNoProximoLogin: token === TOKEN_SENHA_PROVISORIA,
             },
           };
@@ -101,7 +100,6 @@ describe('Cadastro pelo gestor (e2e)', () => {
       .expect(201)
       .expect(({ body }) => {
         expect(body.perfil).toBe('COLABORADOR');
-        expect(body.permissoes).toEqual(['REVISAR_FICHAS']);
       });
 
     expect(criar).toHaveBeenCalledWith({
@@ -191,7 +189,7 @@ describe('Cadastro pelo gestor (e2e)', () => {
     expect(criar).not.toHaveBeenCalled();
   });
 
-  it('recusa cadastro por colaborador mesmo com todas as permissões (403)', async () => {
+  it('recusa cadastro por colaborador (403)', async () => {
     await request(app.getHttpServer())
       .post('/api/usuarios')
       .set('Cookie', `hemocentro_sessao=${TOKEN_COLABORADOR}`)
@@ -202,11 +200,21 @@ describe('Cadastro pelo gestor (e2e)', () => {
     expect(criar).not.toHaveBeenCalled();
   });
 
-  it('recusa listagem de contas por colaborador (403)', () =>
+  it('permite listagem de contas por colaborador (200)', () =>
     request(app.getHttpServer())
       .get('/api/usuarios')
       .set('Cookie', `hemocentro_sessao=${TOKEN_COLABORADOR}`)
-      .expect(403));
+      .expect(200));
+
+  it.each(['inativar', 'reativar'])('recusa %s usuário por colaborador (403)', async (acao) => {
+    await request(app.getHttpServer())
+      .post(`/api/usuarios/3/${acao}`)
+      .set('Cookie', `hemocentro_sessao=${TOKEN_COLABORADOR}`)
+      .set('X-CSRF-Token', CSRF)
+      .expect(403);
+
+    expect(definirAtivo).not.toHaveBeenCalled();
+  });
 
   it('recusa cadastro pelo gestor sem CSRF (403)', async () => {
     await request(app.getHttpServer())
@@ -229,14 +237,14 @@ describe('Cadastro pelo gestor (e2e)', () => {
     expect(criar).not.toHaveBeenCalled();
   });
 
-  it('recusa permissão inexistente (400)', async () => {
+  it('recusa o campo permissoes, que não existe mais (400)', async () => {
     await request(app.getHttpServer())
       .post('/api/usuarios')
       .set('Cookie', `hemocentro_sessao=${TOKEN_GESTOR}`)
       .set('X-CSRF-Token', CSRF)
       .send({
         ...cadastro,
-        permissoes: ['ADMINISTRAR_TUDO'],
+        permissoes: ['REVISAR_FICHAS'],
       })
       .expect(400);
 

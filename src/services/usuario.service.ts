@@ -17,7 +17,6 @@ const USUARIO_PUBLICO = {
     email: true,
     ativo: true,
     perfil: true,
-    permissoes: true,
     trocarSenhaNoProximoLogin: true,
     colaboradorId: true,
     colaborador: {
@@ -54,7 +53,6 @@ export class UsuarioService {
         nome: dto.nome,
         email: dto.email,
         colaboradorId: dto.colaboradorId,
-        permissoes: dto.permissoes,
         perfil: PerfilUsuario.COLABORADOR,
         ativo: true,
         senhaHash: await this.senhas.gerarHash(dto.senha),

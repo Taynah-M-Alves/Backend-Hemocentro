@@ -38,7 +38,6 @@ describe('UsuarioService — cadastro de funcionário', () => {
           nome: 'Funcionária de teste',
           email: 'funcionaria@example.invalid',
           colaboradorId: undefined,
-          permissoes: ['REVISAR_FICHAS'],
           perfil: 'COLABORADOR',
           ativo: true,
           senhaHash: 'hash-argon2',
@@ -73,7 +72,6 @@ describe('UsuarioService — cadastro de funcionário', () => {
         nome: 'Funcionária de teste',
         email: 'funcionaria@example.invalid',
         colaboradorId: 999,
-        permissoes: [],
         senha: 'provisoria-123',
       }),
     ).rejects.toThrow('Colaborador 999 não está cadastrado.');

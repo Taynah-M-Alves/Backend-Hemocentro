@@ -9,11 +9,9 @@ import {
 import { lerFiltroEventosDto } from '../dtos/auditoria.dto.js';
 import { AuditoriaService } from '../services/auditoria.service.js';
 import { XLSX_MIME } from '../utils/xlsx.js';
-import { PermissoesPermitidas } from '../decorators/permissoes-permitidas.decorator.js';
 
 /** Tela Auditoria (e "Atividade recente" do Dashboard). Somente leitura. */
 @Controller('auditoria/eventos')
-@PermissoesPermitidas('CONSULTAR_AUDITORIA')
 export class AuditoriaController {
   constructor(private readonly auditoria: AuditoriaService) {}
 

@@ -312,20 +312,12 @@ enum PerfilUsuario {
   COLABORADOR
 }
 
-enum PermissaoUsuario {
-  VISUALIZAR_DASHBOARD
-  ENVIAR_DOCUMENTOS
-  REVISAR_FICHAS
-  CONSULTAR_PRONTUARIOS
-  CONSULTAR_AUDITORIA
-}
-
 enum FinalidadeTokenSenha {
   DEFINIR_SENHA
   REDEFINIR_SENHA
 }
 
-/// Conta de acesso ao sistema, com perfil e permissões.
+/// Conta de acesso ao sistema. GESTOR: tudo; COLABORADOR: tudo menos criar/inativar/reativar usuário.
 model Usuario {
   id            Int               @id @default(autoincrement())
   nome          String            @db.VarChar(255)
@@ -333,7 +325,6 @@ model Usuario {
   ativo         Boolean           @default(true)
   senhaHash     String?           @map("senha_hash") @db.Text
   perfil        PerfilUsuario     @default(COLABORADOR)
-  permissoes    PermissaoUsuario[] @default([])
   colaboradorId Int?              @unique @map("colaborador_id")
   /// true: o login só libera a troca de senha (POST /api/auth/trocar-senha) até ele trocar
   trocarSenhaNoProximoLogin Boolean @default(false) @map("trocar_senha_no_proximo_login")

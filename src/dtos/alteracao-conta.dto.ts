@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { PerfilUsuario, PermissaoUsuario } from '../generated/prisma/enums.js';
+import { PerfilUsuario } from '../generated/prisma/enums.js';
 import {
   booleanoOpcional,
   corpo,
@@ -12,7 +12,6 @@ export interface AlterarContaDto {
   ativo?: boolean;
   colaboradorId?: number | null;
   perfil?: PerfilUsuario;
-  permissoes?: PermissaoUsuario[];
 }
 
 const CAMPOS_PERMITIDOS = new Set([
@@ -20,11 +19,9 @@ const CAMPOS_PERMITIDOS = new Set([
   'ativo',
   'colaboradorId',
   'perfil',
-  'permissoes',
 ]);
 
 const PERFIS_VALIDOS = Object.values(PerfilUsuario);
-const PERMISSOES_VALIDAS = Object.values(PermissaoUsuario);
 
 export function lerAlterarContaDto(body: unknown): AlterarContaDto {
   const dados = corpo(body);
@@ -60,31 +57,6 @@ export function lerAlterarContaDto(body: unknown): AlterarContaDto {
     }
 
     dto.perfil = dados.perfil as PerfilUsuario;
-  }
-
-  if ('permissoes' in dados) {
-    if (!Array.isArray(dados.permissoes)) {
-      throw new BadRequestException('"permissoes" precisa ser uma lista.');
-    }
-
-    if (dados.permissoes.length > PERMISSOES_VALIDAS.length) {
-      throw new BadRequestException(
-        'A lista de permissões excede o limite permitido.',
-      );
-    }
-
-    const permissoes = dados.permissoes.map((valor: unknown) => {
-      if (
-        typeof valor !== 'string' ||
-        !PERMISSOES_VALIDAS.includes(valor as PermissaoUsuario)
-      ) {
-        throw new BadRequestException('A lista contém uma permissão inválida.');
-      }
-
-      return valor as PermissaoUsuario;
-    });
-
-    dto.permissoes = [...new Set(permissoes)];
   }
 
   if (Object.values(dto).every((valor) => valor === undefined)) {

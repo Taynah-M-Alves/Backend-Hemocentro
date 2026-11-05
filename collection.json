@@ -31,10 +31,10 @@
                 "usuarios"
               ]
             },
-            "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
+            "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com perfil COLABORADOR (acesso a tudo, menos criar, desativar e reativar usuário) e uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"colaboradorId\": null,\n  \"permissoes\": [\"REVISAR_FICHAS\"]\n}",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"colaboradorId\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -104,7 +104,7 @@
                 "{{usuarioId}}"
               ]
             },
-            "description": "Só gestor logado. Altera nome, colaboradorId (null desliga) e/ou trocarSenhaNoProximoLogin (true obriga o usuário a trocar a senha: a partir da próxima requisição dele, tudo dá 403 até usar \"Trocar senha\"). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir ou se trocarSenhaNoProximoLogin não for true/false. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
+            "description": "Gestor ou colaborador logado. Altera nome, colaboradorId (null desliga) e/ou trocarSenhaNoProximoLogin (true obriga o usuário a trocar a senha: a partir da próxima requisição dele, tudo dá 403 até usar \"Trocar senha\"). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir ou se trocarSenhaNoProximoLogin não for true/false. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"colaboradorId\": null,\n  \"trocarSenhaNoProximoLogin\": true\n}",

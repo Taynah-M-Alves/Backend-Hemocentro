@@ -2,8 +2,8 @@ import { lerAlterarContaDto } from './alteracao-conta.dto.js';
 
 describe('lerAlterarContaDto', () => {
   it('aceita alteração parcial sem acrescentar outros campos', () => {
-    expect(lerAlterarContaDto({ permissoes: ['REVISAR_FICHAS'] })).toEqual({
-      permissoes: ['REVISAR_FICHAS'],
+    expect(lerAlterarContaDto({ colaboradorId: 2 })).toEqual({
+      colaboradorId: 2,
     });
   });
 
@@ -25,25 +25,9 @@ describe('lerAlterarContaDto', () => {
     });
   });
 
-  it('aceita remover todas as permissões', () => {
-    expect(lerAlterarContaDto({ permissoes: [] })).toEqual({
-      permissoes: [],
-    });
-  });
-
   it('aceita remover o vínculo com colaborador', () => {
     expect(lerAlterarContaDto({ colaboradorId: null })).toEqual({
       colaboradorId: null,
-    });
-  });
-
-  it('remove permissões repetidas', () => {
-    expect(
-      lerAlterarContaDto({
-        permissoes: ['REVISAR_FICHAS', 'REVISAR_FICHAS'],
-      }),
-    ).toEqual({
-      permissoes: ['REVISAR_FICHAS'],
     });
   });
 
@@ -53,10 +37,10 @@ describe('lerAlterarContaDto', () => {
     );
   });
 
-  it('recusa permissão inexistente', () => {
+  it('recusa o campo permissoes, que não existe mais', () => {
     expect(() =>
-      lerAlterarContaDto({ permissoes: ['ADMINISTRAR_TUDO'] }),
-    ).toThrow('A lista contém uma permissão inválida.');
+      lerAlterarContaDto({ permissoes: ['REVISAR_FICHAS'] }),
+    ).toThrow('O campo "permissoes" não é permitido na alteração da conta.');
   });
 
   it('recusa situação ativa enviada como texto', () => {
