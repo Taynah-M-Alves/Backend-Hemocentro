@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { createHash, randomBytes } from 'node:crypto';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { Request } from 'express';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from './prisma.service.js';
 
 const DURACAO_SESSAO_MS = 8 * 60 * 60 * 1000;
@@ -7,6 +12,11 @@ const FORMATO_TOKEN = /^[a-f0-9]{64}$/;
 
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+export function tokenDoCookie(requisicao: Request): string | undefined {
+  const valor: unknown = requisicao.cookies?.hemocentro_sessao;
+  return typeof valor === 'string' ? valor : undefined;
 }
 
 @Injectable()
@@ -63,6 +73,25 @@ export class SessaoService {
       return null;
     }
 
+    return sessao;
+  }
+
+  /** Sessão do cookie + header X-CSRF-Token: 401 sem sessão válida, 403 com CSRF errado. */
+  async exigir(token: string | undefined, csrf: string | undefined) {
+    const sessao = await this.buscar(token);
+    if (!sessao) {
+      throw new UnauthorizedException(
+        'Sessão inválida ou expirada. Entre novamente.',
+      );
+    }
+    const recebido = Buffer.from(csrf ?? '', 'utf8');
+    const esperado = Buffer.from(sessao.csrfToken, 'utf8');
+    if (
+      recebido.length !== esperado.length ||
+      !timingSafeEqual(recebido, esperado)
+    ) {
+      throw new ForbiddenException('Token de proteção inválido.');
+    }
     return sessao;
   }
 

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hemocentro API",
-    "description": "As 29 rotas do Planejamento da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
+    "description": "As 34 rotas da API. Comece criando um usuário: o id dele fica em {{usuarioId}} e vai no header X-Usuario-Id. loteId, documentoId, fichaId, pacienteId e eventoId são preenchidos pelas próprias respostas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -96,16 +96,64 @@
                 "{{usuarioId}}"
               ]
             },
-            "description": "Altera nome, ativo e/ou colaboradorId (null desliga). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir.",
+            "description": "Altera nome e/ou colaboradorId (null desliga). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"ativo\": true,\n  \"colaboradorId\": null\n}",
+              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"colaboradorId\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             }
+          }
+        },
+        {
+          "name": "Desativar usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/{{usuarioAlvoId}}/inativar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{usuarioAlvoId}}",
+                "inativar"
+              ]
+            },
+            "description": "Só gestor logado: faça antes o \"Entrar (login)\" da pasta 6 com um gestor (o cookie hemocentro_sessao fica no Postman e o csrfToken vai para a variável). Desativa o usuário {{usuarioAlvoId}}: o login dele passa a dar 401, as sessões abertas são encerradas e os links de troca de senha pendentes deixam de valer; esqueci-senha não manda mais e-mail. 200 com o usuário (ativo: false); 400 se for você mesmo; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 404 se o usuário não existir."
+          }
+        },
+        {
+          "name": "Reativar usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/{{usuarioAlvoId}}/reativar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{usuarioAlvoId}}",
+                "reativar"
+              ]
+            },
+            "description": "Só gestor logado (mesmo esquema do Desativar). Volta ativo: true; o usuário entra de novo com a senha que já tinha (as sessões antigas continuam encerradas). 200 com o usuário; 401, 403 e 404 como no Desativar."
           }
         },
         {
@@ -1052,8 +1100,51 @@
       ]
     },
     {
-      "name": "6. Senha (esqueci / redefinir)",
+      "name": "6. Acesso (login, senha)",
       "item": [
+        {
+          "name": "Entrar (login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set('csrfToken', pm.response.json().csrfToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Entra e grava o cookie hemocentro_sessao (o Postman guarda sozinho). O csrfToken da resposta vai para a variável csrfToken, usada no header X-CSRF-Token. 200; 401 se o e-mail ou a senha estiverem errados ou se o usuário estiver desativado. Limite: 5 tentativas erradas por e-mail e 20 por rede (IP) a cada 15 min; passou disso, 429 com { message, tentarNovamenteEm } (ex.: \"Muitas tentativas de login com este e-mail. Tente novamente às 01:20.\", hora de Cuiabá). Login certo não conta.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"gestor@hemocentro.local\",\n  \"senha\": \"Senha#123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
         {
           "name": "Esqueci a senha",
           "request": {
@@ -1074,7 +1165,7 @@
                 "esqueci-senha"
               ]
             },
-            "description": "Sempre 200 com a mesma mensagem, exista ou não o e-mail. Se for de um usuário ativo, envia o link FRONTEND_URL/redefinir-senha?token=... (vale 30 min, uma vez só; no máximo 1 e-mail por minuto). Sem SMTP_HOST no .env, o e-mail aparece no terminal do backend. Copie o token do link para a variável tokenSenha.",
+            "description": "Sempre 200 com a mesma mensagem, exista ou não o e-mail. Se for de um usuário ativo, envia o link FRONTEND_URL/redefinir-senha?token=... (vale 30 min, uma vez só; no máximo 1 e-mail por minuto). Sem SMTP_HOST no .env, o e-mail aparece no terminal do backend. Limite: 5 pedidos por rede (IP) a cada 15 min, para qualquer e-mail; o 6º dá 429 com { message, tentarNovamenteEm }. Copie o token do link para a variável tokenSenha.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"camila@hemocentro.local\"\n}",
@@ -1153,6 +1244,14 @@
     {
       "key": "tokenSenha",
       "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "usuarioAlvoId",
+      "value": "2"
     }
   ]
 }

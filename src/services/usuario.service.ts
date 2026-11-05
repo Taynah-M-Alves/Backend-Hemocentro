@@ -54,6 +54,32 @@ export class UsuarioService {
     });
   }
 
+  /** Inativar encerra as sessões abertas e invalida os links de senha pendentes. */
+  async definirAtivo(id: number, ativo: boolean, gestorId: number) {
+    if (!ativo && id === gestorId) {
+      throw new BadRequestException('Você não pode desativar o seu próprio usuário.');
+    }
+    const agora = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const usuario = await tx.usuario.update({
+        where: { id },
+        data: { ativo },
+        ...USUARIO_PUBLICO,
+      });
+      if (!ativo) {
+        await tx.sessaoUsuario.updateMany({
+          where: { usuarioId: id, revogadaEm: null },
+          data: { revogadaEm: agora },
+        });
+        await tx.tokenSenha.updateMany({
+          where: { usuarioId: id, usadoEm: null },
+          data: { usadoEm: agora },
+        });
+      }
+      return usuario;
+    });
+  }
+
   /** Quem está no header X-Usuario-Id precisa existir e estar ativo para alterar dados. */
   async exigirAtivo(id: number): Promise<{ id: number; nome: string }> {
     const usuario = await this.prisma.usuario.findUnique({

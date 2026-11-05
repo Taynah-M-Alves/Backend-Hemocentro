@@ -7,6 +7,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Ip,
   Logger,
   Post,
   Req,
@@ -20,8 +21,7 @@ import {
   lerRedefinirSenhaDto,
 } from '../dtos/autenticacao.dto.js';
 import { AutenticacaoService } from '../services/autenticacao.service.js';
-import { SessaoService } from '../services/sessao.service.js';
-import { timingSafeEqual } from 'node:crypto';
+import { SessaoService, tokenDoCookie } from '../services/sessao.service.js';
 
 @Controller('auth')
 export class AutenticacaoController {
@@ -36,6 +36,7 @@ export class AutenticacaoController {
   async login(
     @Body() body: unknown,
     @Headers('origin') origem: string | undefined,
+    @Ip() ip: string,
     @Res({ passthrough: true }) resposta: Response,
   ) {
     const origensPermitidas = (
@@ -51,7 +52,7 @@ export class AutenticacaoController {
 
     const { email, senha } = lerLoginDto(body);
 
-    const { usuario, sessao } = await this.autenticacao.entrar(email, senha);
+    const { usuario, sessao } = await this.autenticacao.entrar(email, senha, ip);
 
     resposta.cookie('hemocentro_sessao', sessao.token, {
       httpOnly: true,
@@ -116,34 +117,8 @@ export class AutenticacaoController {
       throw new ForbiddenException('Origem não permitida.');
     }
 
-    const valorCookie: unknown = requisicao.cookies?.hemocentro_sessao;
-    const token = typeof valorCookie === 'string' ? valorCookie : undefined;
-
-    const sessao = await this.sessoes.buscar(token);
-
-    if (!sessao) {
-      throw new UnauthorizedException(
-        'Sessão inválida ou expirada. Entre novamente.',
-      );
-    }
-
-    if (
-      typeof csrfRecebido !== 'string' ||
-      !/^[a-f0-9]{64}$/.test(csrfRecebido)
-    ) {
-      throw new ForbiddenException('Token de proteção inválido.');
-    }
-
-    const recebido = Buffer.from(csrfRecebido, 'utf8');
-    const esperado = Buffer.from(sessao.csrfToken, 'utf8');
-
-    if (
-      recebido.length !== esperado.length ||
-      !timingSafeEqual(recebido, esperado)
-    ) {
-      throw new ForbiddenException('Token de proteção inválido.');
-    }
-
+    const token = tokenDoCookie(requisicao);
+    await this.sessoes.exigir(token, csrfRecebido);
     await this.sessoes.revogar(token);
 
     resposta.clearCookie('hemocentro_sessao', {
@@ -157,10 +132,12 @@ export class AutenticacaoController {
   @Post('esqueci-senha')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  esqueciSenha(@Body() body: unknown) {
+  esqueciSenha(@Body() body: unknown, @Ip() ip: string) {
+    const email = lerEsqueciSenhaDto(body);
+    this.autenticacao.limitarEsqueciSenha(ip);
     // Sem await: a resposta sai no mesmo tempo, exista ou não o e-mail
     this.autenticacao
-      .esqueciSenha(lerEsqueciSenhaDto(body))
+      .esqueciSenha(email)
       .catch((erro: unknown) =>
         Logger.error(`Falha no esqueci-senha: ${String(erro)}`, 'Autenticacao'),
       );

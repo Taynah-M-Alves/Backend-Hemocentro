@@ -10,9 +10,11 @@ import { SenhaService } from './senha.service.js';
 import { SessaoService, hashToken } from './sessao.service.js';
 import { EmailService } from './email.service.js';
 import { dataHoraLocal } from '../utils/formatos.js';
+import { LimiteTentativas } from '../utils/limite-tentativas.js';
 
 const VALIDADE_LINK_MS = 30 * 60 * 1000;
 const INTERVALO_REENVIO_MS = 60 * 1000;
+const QUINZE_MINUTOS = 15 * 60 * 1000;
 
 function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: string): string {
   return `<!DOCTYPE html>
@@ -121,6 +123,23 @@ function gerarTemplateEmailRedefinicao(nome: string, link: string, dataLimite: s
 export class AutenticacaoService implements OnModuleInit {
   private hashInexistente!: string;
 
+  // Login: 5 erros por e-mail e 20 por IP a cada 15 min. Esqueci a senha: 5 pedidos por IP.
+  private readonly loginPorEmail = new LimiteTentativas(
+    5,
+    QUINZE_MINUTOS,
+    'Muitas tentativas de login com este e-mail.',
+  );
+  private readonly loginPorIp = new LimiteTentativas(
+    20,
+    QUINZE_MINUTOS,
+    'Muitas tentativas de login a partir desta rede.',
+  );
+  private readonly esqueciPorIp = new LimiteTentativas(
+    5,
+    QUINZE_MINUTOS,
+    'Muitos pedidos de nova senha a partir desta rede.',
+  );
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly senhas: SenhaService,
@@ -133,7 +152,11 @@ export class AutenticacaoService implements OnModuleInit {
     this.hashInexistente = await this.senhas.gerarHash(senhaAleatoria);
   }
 
-  async entrar(email: string, senha: string) {
+  async entrar(email: string, senha: string, ip: string) {
+    // Conta antes de conferir a senha: pedidos em paralelo não escapam do limite
+    this.loginPorIp.tentar(ip);
+    this.loginPorEmail.tentar(email);
+
     const usuario = await this.prisma.usuario.findUnique({
       where: {
         email: email.trim().toLowerCase(),
@@ -158,6 +181,10 @@ export class AutenticacaoService implements OnModuleInit {
       throw new UnauthorizedException('E-mail ou senha inválidos.');
     }
 
+    // Senha certa não conta como tentativa
+    this.loginPorIp.desfazer(ip);
+    this.loginPorEmail.desfazer(email);
+
     const sessao = await this.sessoes.criar(usuario.id);
 
     return {
@@ -170,6 +197,11 @@ export class AutenticacaoService implements OnModuleInit {
       },
       sessao,
     };
+  }
+
+  /** 429 se este IP já pediu nova senha demais (vale para qualquer e-mail, existente ou não). */
+  limitarEsqueciSenha(ip: string): void {
+    this.esqueciPorIp.tentar(ip);
   }
 
   /** Manda o link só se o e-mail for de um usuário ativo; quem chama não fica sabendo se existe. */

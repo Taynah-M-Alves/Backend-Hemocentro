@@ -26,6 +26,10 @@ const fuso = () => process.env.FUSO_HORARIO || 'America/Cuiaba';
 export const dataHoraLocal = (data: Date) =>
   data.toLocaleString('pt-BR', { timeZone: fuso() });
 
+/** "22:49" no fuso do sistema. */
+export const horaLocal = (data: Date) =>
+  data.toLocaleTimeString('pt-BR', { timeZone: fuso(), hour: '2-digit', minute: '2-digit' });
+
 /**
  * "2026-11-04T22:49:27.932-04:00": ISO com o deslocamento do fuso, para as respostas JSON.
  * Data sem hora (@db.Date, meia-noite UTC) fica como está, senão voltaria um dia.

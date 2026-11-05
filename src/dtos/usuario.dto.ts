@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 import {
-  booleanoOpcional,
   corpo,
   idOpcional,
   textoObrigatorio,
@@ -19,7 +18,6 @@ export interface CriarUsuarioDto {
 /** PATCH /api/usuarios/:id (todos opcionais; colaboradorId null desliga a colaboradora) */
 export interface AlterarUsuarioDto {
   nome?: string;
-  ativo?: boolean;
   colaboradorId?: number | null;
 }
 
@@ -36,9 +34,13 @@ export function lerCriarUsuarioDto(body: unknown): CriarUsuarioDto {
 
 export function lerAlterarUsuarioDto(body: unknown): AlterarUsuarioDto {
   const c = corpo(body);
+  if ('ativo' in c) {
+    throw new BadRequestException(
+      'Para desativar ou reativar use POST /api/usuarios/:id/inativar ou /reativar.',
+    );
+  }
   return {
     nome: textoOpcional(c, 'nome'),
-    ativo: booleanoOpcional(c, 'ativo'),
     colaboradorId: idOpcional(c, 'colaboradorId'),
   };
 }
