@@ -23,10 +23,10 @@ $ npx prisma generate
 ```
 
 ```bash
-$ npx prisma db push
+$ npx prisma migrate deploy
 ```
 
-**é necessario ter adicionado o database_url na env para o comando `npx prisma db push` funcionar**
+**é necessario ter adicionado o database_url na env para o comando `npx prisma migrate deploy` funcionar**
 
 ### Leitura das fichas digitalizadas (OCR)
 
