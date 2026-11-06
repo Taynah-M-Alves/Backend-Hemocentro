@@ -39,5 +39,17 @@ export function validarNovaSenha(valor: unknown): string {
     );
   }
 
+  // Espaço não conta como caractere especial
+  if (
+    !/\p{Ll}/u.test(valor) ||
+    !/\p{Lu}/u.test(valor) ||
+    !/\d/.test(valor) ||
+    !/[^\p{L}\p{N}\s]/u.test(valor)
+  ) {
+    throw new BadRequestException(
+      'A senha deve ter pelo menos uma letra minúscula, uma maiúscula, um número e um caractere especial.',
+    );
+  }
+
   return valor;
 }

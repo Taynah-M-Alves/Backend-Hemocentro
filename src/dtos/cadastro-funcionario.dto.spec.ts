@@ -3,7 +3,7 @@ import { lerCadastrarFuncionarioDto } from './cadastro-funcionario.dto.js';
 const cadastroValido = () => ({
   nome: 'Funcionária de teste',
   email: 'funcionaria@example.invalid',
-  senha: 'provisoria-123',
+  senha: 'Provisoria#123',
 });
 
 describe('lerCadastrarFuncionarioDto', () => {

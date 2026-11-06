@@ -10,7 +10,11 @@ import { validarNovaSenha } from '../utils/politica-senha.js';
 class ErroInicializacao extends Error {}
 
 async function executar(): Promise<void> {
-  process.loadEnvFile();
+  try {
+    process.loadEnvFile();
+  } catch {
+    // sem .env, usa as variáveis do sistema (igual ao servidor)
+  }
 
   if (!process.env.DATABASE_URL) {
     throw new ErroInicializacao('Configure DATABASE_URL no arquivo .env.');

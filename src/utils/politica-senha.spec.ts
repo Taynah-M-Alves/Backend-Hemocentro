@@ -8,7 +8,7 @@ describe('validarNovaSenha', () => {
     },
   );
 
-  it.each(['minha frase de acesso', 'Abc! 2345', 'a'.repeat(64)])(
+  it.each(['Minha frase de acesso 2!', 'Abc! 2345', 'Aa1!'.repeat(16)])(
     'aceita frases-senha com espaços e até 64 caracteres: %j',
     (senha) => {
       expect(validarNovaSenha(senha)).toBe(senha);
@@ -38,6 +38,15 @@ describe('validarNovaSenha', () => {
       'Esta senha é muito previsível. Escolha outra.',
     );
   });
+
+  it.each(['abc!2345', 'ABC!2345', 'Abcd!efg', 'Abcd2345', 'Abc 2345'])(
+    'rejeita senha sem minúscula, maiúscula, número ou caractere especial: %j',
+    (senha) => {
+      expect(() => validarNovaSenha(senha)).toThrow(
+        'A senha deve ter pelo menos uma letra minúscula, uma maiúscula, um número e um caractere especial.',
+      );
+    },
+  );
 
   it('rejeita caracteres invisíveis de formatação', () => {
     expect(() => validarNovaSenha('Abc!\u200B2345')).toThrow(

@@ -26,7 +26,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
       ativo: false,
       senhaHash: 'hash-injetado',
       trocarSenhaNoProximoLogin: false,
-      senha: 'provisoria-123',
+      senha: 'Provisoria#123',
     } as unknown as CadastrarFuncionarioDto;
 
     await service.criar(dados);
@@ -47,7 +47,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
 
     const consulta = criar.mock.calls[0]![0];
 
-    expect(gerarHash).toHaveBeenCalledWith('provisoria-123');
+    expect(gerarHash).toHaveBeenCalledWith('Provisoria#123');
     expect(consulta.select).not.toHaveProperty('senhaHash');
   });
 
@@ -71,7 +71,7 @@ describe('UsuarioService — cadastro de funcionário', () => {
         nome: 'Funcionária de teste',
         email: 'funcionaria@example.invalid',
         colaboradorId: 999,
-        senha: 'provisoria-123',
+        senha: 'Provisoria#123',
         perfil: 'COLABORADOR',
       }),
     ).rejects.toThrow('Colaborador 999 não está cadastrado.');

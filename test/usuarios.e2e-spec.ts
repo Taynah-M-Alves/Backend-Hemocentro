@@ -17,7 +17,7 @@ const CSRF = 'b'.repeat(64);
 const cadastro = {
   nome: 'Funcionário de teste',
   email: 'funcionario@example.invalid',
-  senha: 'provisoria-123',
+  senha: 'Provisoria#123',
 };
 
 describe('Cadastro pelo gestor (e2e)', () => {
@@ -155,7 +155,7 @@ describe('Cadastro pelo gestor (e2e)', () => {
       .post('/api/auth/trocar-senha')
       .set('Cookie', `hemocentro_sessao=${TOKEN_SENHA_PROVISORIA}`)
       .set('X-CSRF-Token', CSRF)
-      .send({ senhaAtual: 'provisoria-123', novaSenha: 'provisoria-123' })
+      .send({ senhaAtual: 'Provisoria#123', novaSenha: 'Provisoria#123' })
       .expect(400)
       .expect(({ body }) => {
         expect(body.message).toBe('A nova senha precisa ser diferente da atual.');
@@ -165,7 +165,7 @@ describe('Cadastro pelo gestor (e2e)', () => {
     request(app.getHttpServer())
       .post('/api/auth/trocar-senha')
       .set('Cookie', `hemocentro_sessao=${TOKEN_SENHA_PROVISORIA}`)
-      .send({ senhaAtual: 'provisoria-123', novaSenha: 'nova-senha-456' })
+      .send({ senhaAtual: 'Provisoria#123', novaSenha: 'Nova#Senha456' })
       .expect(403));
 
   it('gestor obriga um usuário a trocar a senha pelo PATCH', async () => {
