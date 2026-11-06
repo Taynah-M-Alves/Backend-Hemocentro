@@ -1,0 +1,49 @@
+# Sistema completo em containers: banco, backend e nginx (frontend + /api).
+# Roteiro em DEPLOY.md, seção "Opção com Docker". Só o nginx abre portas (80 e 443).
+services:
+  db:
+    image: postgres:17 # a imagem oficial já traz a extensão unaccent
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hemocentro
+      POSTGRES_USER: hemocentro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'hemocentro']
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://hemocentro:${POSTGRES_PASSWORD}@db:5432/hemocentro
+      NODE_ENV: production
+      PORT: 3000
+      TRUST_PROXY: 1
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: docker/nginx
+      additional_contexts:
+        front: ../projeto_hemocentro
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+
+volumes:
+  db:
+  uploads:

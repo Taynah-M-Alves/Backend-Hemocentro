@@ -83,6 +83,8 @@ Para testar: na tela de login, use **Esqueci a senha** com o e-mail de um usuár
 
 O roteiro abaixo usa um servidor Linux (Ubuntu Server 24.04) com nginx na frente, frontend e API no mesmo endereço (`https://hemocentro.exemplo.gov.br` para as telas e `https://hemocentro.exemplo.gov.br/api` para a API). Troque o domínio pelo real. Em Windows Server os passos são os mesmos; as diferenças estão nas notas. Cada bloco diz **onde** o comando deve ser rodado.
 
+Se o servidor tiver Docker, há um caminho mais curto: veja [Opção com Docker](#opção-com-docker) no fim deste arquivo. Os requisitos de hardware, HTTPS e acesso de saída abaixo valem para os dois caminhos.
+
 ### O que o servidor precisa
 
 - Node.js 24 LTS (o código usa `process.loadEnvFile`, que não existe antes do Node 20.12) e npm.
@@ -387,3 +389,86 @@ No frontend: `git pull`, `npm ci`, `npm run build` e copiar `dist/` de novo para
 | Upload grande responde 413                                             | `client_max_body_size` do nginx menor que o envio                                                                              |
 | Uma pessoa bloqueia o login de todos (429)                             | `TRUST_PROXY` vazio atrás do proxy: todo mundo parece ter o mesmo IP                                                           |
 | E-mail não chega                                                       | Confira `SMTP_*` e o log (`Falha no esqueci-senha`). No Gmail, a senha comum não funciona: precisa da senha de app             |
+
+## Opção com Docker
+
+Alternativa ao passo a passo acima, para um servidor com Docker Engine e o plugin Compose (versão 2.17 ou mais nova). O `docker-compose.yml` sobe três containers:
+
+| Container | O que faz                                                                                                         |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `db`      | PostgreSQL 17 oficial, que já traz a extensão `unaccent`. Dados no volume `db`                                    |
+| `backend` | API NestJS. Ao iniciar, roda `npx prisma migrate deploy` e depois `node dist/main.js`. Fichas no volume `uploads` |
+| `nginx`   | Serve o build do frontend e repassa `/api` ao backend, com HTTPS                                                  |
+
+Só o nginx abre portas (80 e 443). O backend (3000) e o banco (5432) ficam na rede interna do Docker, sem acesso de fora. Os requisitos de hardware, o certificado HTTPS e o acesso de saída para as IAs e o SMTP são os mesmos do roteiro acima.
+
+### Docker passo 1 — Código
+
+As duas pastas precisam ficar lado a lado, porque o compose busca o frontend em `../projeto_hemocentro`:
+
+```bash
+sudo mkdir -p /opt/hemocentro && sudo chown $USER /opt/hemocentro
+cd /opt/hemocentro
+git clone https://github.com/Taynah-M-Alves/Backend-Hemocentro.git backend
+git clone https://github.com/ThaisVDR/projeto_hemocentro.git
+```
+
+### Docker passo 2 — .env e certificado
+
+Onde: `/opt/hemocentro/backend`.
+
+```bash
+cp .env.example .env
+nano .env
+chmod 600 .env
+```
+
+Preencha como no Passo 3, com duas diferenças: acrescente `POSTGRES_PASSWORD=` com a senha do banco (só letras e números, porque ela entra no endereço de conexão sem URL-encode) e não precisa de `DATABASE_URL`, `NODE_ENV`, `PORT` nem `TRUST_PROXY`, que o compose já define.
+
+Copie o certificado e a chave para a pasta `certs/` com estes nomes (a pasta não vai para o Git):
+
+```bash
+mkdir -p certs
+cp /caminho/do/certificado.crt certs/hemocentro.crt
+cp /caminho/da/chave.key certs/hemocentro.key
+```
+
+O frontend é gerado com `VUE_APP_API_URL=/api` (mesmo endereço do site), então não precisa do `.env.production.local` do Passo 9.
+
+### Docker passo 3 — Subir
+
+Onde: `/opt/hemocentro/backend`.
+
+```bash
+docker compose up -d --build
+docker compose logs -f backend
+```
+
+No log do backend devem aparecer as migrações aplicadas e `Servidor rodando em http://localhost:3000/api`. Os containers voltam sozinhos depois de um reinício do servidor.
+
+### Docker passo 4 — Primeiro gestor
+
+Uma vez só:
+
+```bash
+docker compose exec backend node dist/scripts/criar-primeiro-gestor.js
+```
+
+Depois, faça a conferência do Passo 11.
+
+### Backup com Docker
+
+```bash
+docker compose exec -T db pg_dump -Fc -U hemocentro hemocentro > /backup/hemocentro-$(date +%F).dump
+docker compose exec -T backend tar czf - -C /app uploads > /backup/uploads-$(date +%F).tar.gz
+```
+
+### Atualizar com Docker
+
+```bash
+cd /opt/hemocentro/projeto_hemocentro && git pull
+cd /opt/hemocentro/backend && git pull
+docker compose up -d --build
+```
+
+As migrações novas rodam sozinhas quando o backend reinicia. Não use `docker compose down -v`: o `-v` apaga os volumes, ou seja, o banco e as fichas.
