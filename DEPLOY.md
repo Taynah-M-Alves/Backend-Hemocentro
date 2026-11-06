@@ -8,35 +8,35 @@ O backend lê o arquivo `.env` da pasta onde é iniciado (sem o arquivo, usa as 
 
 ### Backend (backend/.env)
 
-| Variável | Obrigatória | Padrão | Para que serve |
-|---|---|---|---|
-| `DATABASE_URL` | Sim | — | Conexão com o PostgreSQL: `postgresql://USUARIO:SENHA@HOST:5432/BANCO`. Caracteres especiais na senha precisam de URL-encode (`@` vira `%40`) |
-| `PORT` | Não | `3000` | Porta HTTP do backend |
-| `NODE_ENV` | Recomendado | — (o `.env.example` traz `production`) | Use `production` no servidor. Assim, se faltar `SMTP_HOST`, o envio de e-mail dá erro em vez de imprimir o link no log |
-| `GEMINI_API_KEY` | Pelo menos uma das 4 chaves de IA | — | Chave do Google Gemini (1ª tentativa) |
-| `GEMINI_MODEL` | Não | `gemini-3.8-flash,gemini-3.7-flash,gemini-2.5-flash` | Modelo(s) do Gemini, separados por vírgula: o seguinte só é tentado quando o anterior está sobrecarregado (503) |
-| `GROQ_API_KEY` | Opcional | — | Chave da Groq (2ª tentativa) |
-| `GROQ_MODEL` | Não | `meta-llama/llama-4-scout-17b-16e-instruct` | Precisa ser um modelo com visão (até 5 páginas por ficha) |
-| `OPENROUTER_API_KEY` | Opcional | — | Chave da OpenRouter, começa com `sk-or-v1-` (3ª tentativa) |
-| `OPENROUTER_MODEL` | Não | `google/gemini-3.7-flash` | Formato `empresa/modelo`. O `.env.example` sugere `google/gemini-3.8-flash` |
-| `OPENAI_API_KEY` | Opcional | — | Chave da OpenAI, começa com `sk-` (4ª tentativa) |
-| `OPENAI_MODEL` | Não | `gpt-4.1` | Modelo da OpenAI (precisa ler imagens) |
-| `CORS_ORIGINS` | Sim em produção | `http://localhost:8080,http://localhost:8081` | Endereço(s) do frontend, separados por vírgula, sem barra no fim. Vale para CORS, para a conferência do `Origin` no login e nas ações, e para o `<iframe>` que mostra o PDF |
-| `FRONTEND_URL` | Sim em produção | `http://localhost:8080` | Endereço do frontend usado no link do e-mail: `FRONTEND_URL/redefinir-senha?token=...` |
-| `FUSO_HORARIO` | Não | `America/Cuiaba` | Fuso (nome IANA) das datas nas respostas, mensagens, e-mails e planilhas |
-| `TRUST_PROXY` | Sim atrás de proxy | vazio | Quantos proxies há na frente (ex.: `1` com um nginx) ou os IPs deles. Sem isso, o limite de tentativas de login enxerga todo mundo com o IP do proxy. Nunca use `true` |
-| `SMTP_HOST` | Sim em produção | — | Servidor SMTP, ex.: `smtp.gmail.com` |
-| `SMTP_PORT` | Não | `465` | `465` = SSL; `587` = STARTTLS |
-| `SMTP_USUARIO` | Sim com SMTP | — | Usuário do SMTP (no Gmail, o endereço da conta) |
-| `SMTP_SENHA` | Sim com SMTP | — | Senha do SMTP (no Gmail, a senha de app de 16 letras, sem espaços) |
-| `SMTP_REMETENTE` | Não | `SMTP_USUARIO` | Remetente que aparece no e-mail, ex.: `Hemocentro <nao-responda@...>` |
+| Variável             | Obrigatória                       | Padrão                                               | Para que serve                                                                                                                                                              |
+| -------------------- | --------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`       | Sim                               | —                                                    | Conexão com o PostgreSQL: `postgresql://USUARIO:SENHA@HOST:5432/BANCO`. Caracteres especiais na senha precisam de URL-encode (`@` vira `%40`)                               |
+| `PORT`               | Não                               | `3000`                                               | Porta HTTP do backend                                                                                                                                                       |
+| `NODE_ENV`           | Recomendado                       | — (o `.env.example` traz `production`)               | Use `production` no servidor. Assim, se faltar `SMTP_HOST`, o envio de e-mail dá erro em vez de imprimir o link no log                                                      |
+| `GEMINI_API_KEY`     | Pelo menos uma das 4 chaves de IA | —                                                    | Chave do Google Gemini (1ª tentativa)                                                                                                                                       |
+| `GEMINI_MODEL`       | Não                               | `gemini-3.8-flash,gemini-3.7-flash,gemini-2.5-flash` | Modelo(s) do Gemini, separados por vírgula: o seguinte só é tentado quando o anterior está sobrecarregado (503)                                                             |
+| `GROQ_API_KEY`       | Opcional                          | —                                                    | Chave da Groq (2ª tentativa)                                                                                                                                                |
+| `GROQ_MODEL`         | Não                               | `meta-llama/llama-4-scout-17b-16e-instruct`          | Precisa ser um modelo com visão (até 5 páginas por ficha)                                                                                                                   |
+| `OPENROUTER_API_KEY` | Opcional                          | —                                                    | Chave da OpenRouter, começa com `sk-or-v1-` (3ª tentativa)                                                                                                                  |
+| `OPENROUTER_MODEL`   | Não                               | `google/gemini-3.7-flash`                            | Formato `empresa/modelo`. O `.env.example` sugere `google/gemini-3.8-flash`                                                                                                 |
+| `OPENAI_API_KEY`     | Opcional                          | —                                                    | Chave da OpenAI, começa com `sk-` (4ª tentativa)                                                                                                                            |
+| `OPENAI_MODEL`       | Não                               | `gpt-4.1`                                            | Modelo da OpenAI (precisa ler imagens)                                                                                                                                      |
+| `CORS_ORIGINS`       | Sim em produção                   | `http://localhost:8080,http://localhost:8081`        | Endereço(s) do frontend, separados por vírgula, sem barra no fim. Vale para CORS, para a conferência do `Origin` no login e nas ações, e para o `<iframe>` que mostra o PDF |
+| `FRONTEND_URL`       | Sim em produção                   | `http://localhost:8080`                              | Endereço do frontend usado no link do e-mail: `FRONTEND_URL/redefinir-senha?token=...`                                                                                      |
+| `FUSO_HORARIO`       | Não                               | `America/Cuiaba`                                     | Fuso (nome IANA) das datas nas respostas, mensagens, e-mails e planilhas                                                                                                    |
+| `TRUST_PROXY`        | Sim atrás de proxy                | vazio                                                | Quantos proxies há na frente (ex.: `1` com um nginx) ou os IPs deles. Sem isso, o limite de tentativas de login enxerga todo mundo com o IP do proxy. Nunca use `true`      |
+| `SMTP_HOST`          | Sim em produção                   | —                                                    | Servidor SMTP, ex.: `smtp.gmail.com`                                                                                                                                        |
+| `SMTP_PORT`          | Não                               | `465`                                                | `465` = SSL; `587` = STARTTLS                                                                                                                                               |
+| `SMTP_USUARIO`       | Sim com SMTP                      | —                                                    | Usuário do SMTP (no Gmail, o endereço da conta)                                                                                                                             |
+| `SMTP_SENHA`         | Sim com SMTP                      | —                                                    | Senha do SMTP (no Gmail, a senha de app de 16 letras, sem espaços)                                                                                                          |
+| `SMTP_REMETENTE`     | Não                               | `SMTP_USUARIO`                                       | Remetente que aparece no e-mail, ex.: `Hemocentro <nao-responda@...>`                                                                                                       |
 
 ### Frontend (projeto_hemocentro)
 
 As variáveis do Vue entram no código na hora do build (`npm run build`): mudou, precisa gerar o build de novo. No servidor, crie `projeto_hemocentro/.env.production.local` (o Vue CLI lê esse arquivo no build de produção).
 
-| Variável | Valor em produção | Para que serve |
-|---|---|---|
+| Variável          | Valor em produção                       | Para que serve                        |
+| ----------------- | --------------------------------------- | ------------------------------------- |
 | `VUE_APP_API_URL` | `https://hemocentro.exemplo.gov.br/api` | Endereço da API, com o prefixo `/api` |
 
 ### Como obter as chaves das IAs
@@ -90,6 +90,54 @@ O roteiro abaixo usa um servidor Linux (Ubuntu Server 24.04) com nginx na frente
 - nginx (ou IIS no Windows) com certificado HTTPS. HTTPS é obrigatório: o cookie de sessão é `Secure` e o navegador não o guarda em `http://` fora de localhost.
 - Saída para a internet (HTTPS, porta 443) para os provedores de IA e para o SMTP (465 ou 587). A instalação do banco não precisa de internet: estados e municípios já estão na migração.
 - Espaço em disco para `uploads/`: cada ficha escaneada tem de 4 a 18 MB.
+
+### Requisitos técnicos do servidor
+
+Frontend, backend e banco cabem no mesmo servidor. Os números abaixo são para esse caso.
+
+| Item                | Mínimo              | Recomendado                                                  | Observação                                                                                                                                                                                                                                                  |
+| ------------------- | ------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sistema operacional | Ubuntu Server 22.04 | Ubuntu Server 24.04 LTS                                      | Windows Server 2019 ou mais novo também serve (IIS + NSSM); o roteiro usa Linux                                                                                                                                                                             |
+| CPU                 | 2 vCPU              | 4 vCPU                                                       | A conversão do PDF em imagem e o Argon2 do login usam CPU                                                                                                                                                                                                   |
+| Memória RAM         | 4 GB                | 8 GB                                                         | Node, PostgreSQL e nginx juntos; cada ficha (até 18 MB) é aberta na memória para virar imagem                                                                                                                                                               |
+| Disco               | 60 GB SSD           | 200 GB SSD, mais um disco ou servidor separado para o backup | Cada ficha escaneada tem de 4 a 18 MB (média de uns 10 MB): 1.000 fichas ≈ 10 GB, 10.000 ≈ 100 GB. O banco em si ocupa poucos GB                                                                                                                            |
+| Node.js             | 20.12               | 24 LTS                                                       | O código usa `process.loadEnvFile`, que não existe antes do 20.12. Precisa do npm                                                                                                                                                                           |
+| PostgreSQL          | 16                  | 16 ou 17                                                     | Com os módulos contrib (`postgresql-contrib`), que trazem a extensão `unaccent`                                                                                                                                                                             |
+| Servidor web        | nginx               | nginx da distribuição                                        | Serve o frontend e repassa `/api` para o backend (ou IIS no Windows)                                                                                                                                                                                        |
+| Certificado HTTPS   | Obrigatório         | —                                                            | O cookie de sessão é `Secure`: em `http://` o navegador não o guarda e toda tela depois do login dá 401. Em rede interna, use o certificado da TI (autoridade certificadora interna) ou um gerado com `mkcert`; o `certbot` só funciona com domínio público |
+| Git                 | —                   | —                                                            | Para instalar e atualizar o código                                                                                                                                                                                                                          |
+| Hora certa          | NTP ativo           | —                                                            | A sessão dura 4 h e as datas usam `FUSO_HORARIO`                                                                                                                                                                                                            |
+
+O frontend, depois do `npm run build`, vira só arquivos estáticos servidos pelo nginx: não fica processo Node dele rodando. O consumo de CPU, RAM e disco é do backend, do PostgreSQL e da pasta `uploads/`.
+
+`npm ci` precisa rodar no próprio servidor: `argon2` e `@napi-rs/canvas` baixam binários do sistema operacional.
+
+**Portas de entrada** (libere só para a rede interna):
+
+| Porta       | Para quê                                                                                            |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| 443/TCP     | Sistema (HTTPS)                                                                                     |
+| 80/TCP      | Só redireciona para o 443 (opcional)                                                                |
+| 22/TCP      | SSH da TI (de preferência só dos IPs da TI)                                                         |
+| 3000 e 5432 | Fechadas. Só o próprio servidor usa o backend e o banco; o PostgreSQL fica escutando em `localhost` |
+
+**Acesso de saída** (o servidor precisa chegar na internet, mesmo com o sistema só na rede interna):
+
+| Destino                               | Porta      | Para quê                                                   |
+| ------------------------------------- | ---------- | ---------------------------------------------------------- |
+| `generativelanguage.googleapis.com`   | 443        | Gemini (1ª tentativa de leitura das fichas)                |
+| `api.groq.com`                        | 443        | Groq (reserva, se tiver chave)                             |
+| `openrouter.ai`                       | 443        | OpenRouter (reserva, se tiver chave)                       |
+| `api.openai.com`                      | 443        | OpenAI (reserva, se tiver chave)                           |
+| Servidor SMTP (ex.: `smtp.gmail.com`) | 465 ou 587 | E-mail do Esqueci a senha                                  |
+| `registry.npmjs.org`, `github.com`    | 443        | Só na instalação e nas atualizações (`npm ci`, `git pull`) |
+| Repositórios do Ubuntu e do Node.js   | 443        | Instalar e atualizar pacotes                               |
+
+Libere só as IAs que tiverem chave no `.env`. Sem saída para nenhuma, todas as fichas vão para `FALHA_LEITURA`. O backend não tem configuração de proxy de saída: se a rede só sai por proxy, a TI precisa liberar esses destinos direto.
+
+**O que pedir à TI do hemocentro:** IP fixo e um nome no DNS interno (ex.: `hemocentro.local`), certificado para esse nome, liberação de saída para os destinos acima, a faixa de IPs da rede interna para o firewall e um lugar fora do servidor para o backup.
+
+A criação do banco não precisa de internet: estados e municípios já estão na migração.
 
 ### Passo 1 — Banco de dados
 
@@ -327,16 +375,15 @@ No frontend: `git pull`, `npm ci`, `npm run build` e copiar `dist/` de novo para
 
 ### Problemas comuns
 
-| Sintoma | Causa provável e solução |
-|---|---|
+| Sintoma                                                                | Causa provável e solução                                                                                                       |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Aprovar ficha dá erro `function unaccent(text) does not exist` (42883) | O banco foi montado com `db push` ou sem os contrib. Instale `postgresql-contrib` e rode `CREATE EXTENSION unaccent;` no banco |
-| `migrate deploy` responde P3005 (banco não está vazio) | O banco foi criado com `db push`. Em instalação nova, recrie o banco vazio (passo 1) e rode o `migrate deploy` |
-| Lista de cidades vazia na revisão | A migração do IBGE não foi aplicada. Confira `npx prisma migrate status` |
-| Login funciona, mas a próxima tela dá 401 | O cookie não foi guardado: site sem HTTPS, ou frontend e API em domínios diferentes. Sirva os dois no mesmo domínio, com HTTPS |
-| 403 "Origem não permitida." | O endereço do site não está em `CORS_ORIGINS` (confira https, www e porta, sem barra no fim) |
-| 403 "Token de proteção inválido." | O frontend não mandou `X-CSRF-Token` (veja o aviso sobre o login do frontend) |
-| Todas as fichas vão para `FALHA_LEITURA` | Sem chave de IA, sem saldo ou sem saída para a internet. O motivo aparece no log e no evento `LEITURA_FALHOU` da auditoria |
-| Upload grande responde 413 | `client_max_body_size` do nginx menor que o envio |
-| Uma pessoa bloqueia o login de todos (429) | `TRUST_PROXY` vazio atrás do proxy: todo mundo parece ter o mesmo IP |
-| E-mail não chega | Confira `SMTP_*` e o log (`Falha no esqueci-senha`). No Gmail, a senha comum não funciona: precisa da senha de app |
-
+| `migrate deploy` responde P3005 (banco não está vazio)                 | O banco foi criado com `db push`. Em instalação nova, recrie o banco vazio (passo 1) e rode o `migrate deploy`                 |
+| Lista de cidades vazia na revisão                                      | A migração do IBGE não foi aplicada. Confira `npx prisma migrate status`                                                       |
+| Login funciona, mas a próxima tela dá 401                              | O cookie não foi guardado: site sem HTTPS, ou frontend e API em domínios diferentes. Sirva os dois no mesmo domínio, com HTTPS |
+| 403 "Origem não permitida."                                            | O endereço do site não está em `CORS_ORIGINS` (confira https, www e porta, sem barra no fim)                                   |
+| 403 "Token de proteção inválido."                                      | O frontend não mandou `X-CSRF-Token` (veja o aviso sobre o login do frontend)                                                  |
+| Todas as fichas vão para `FALHA_LEITURA`                               | Sem chave de IA, sem saldo ou sem saída para a internet. O motivo aparece no log e no evento `LEITURA_FALHOU` da auditoria     |
+| Upload grande responde 413                                             | `client_max_body_size` do nginx menor que o envio                                                                              |
+| Uma pessoa bloqueia o login de todos (429)                             | `TRUST_PROXY` vazio atrás do proxy: todo mundo parece ter o mesmo IP                                                           |
+| E-mail não chega                                                       | Confira `SMTP_*` e o log (`Falha no esqueci-senha`). No Gmail, a senha comum não funciona: precisa da senha de app             |
