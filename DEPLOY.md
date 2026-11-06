@@ -2,8 +2,6 @@
 
 Roteiro para instalar o sistema no servidor do hemocentro. A explicação completa (glossário, ciclo de status das fichas, perfis e todas as rotas da API) está em `docs/Documentação da API - Hemocentro.docx`.
 
-> **Atenção antes do deploy: o frontend (projeto_hemocentro) ainda não usa este login. Ele não chama POST /api/auth/login, ainda manda o header antigo X-Usuario-Id e não envia cookie nem X-CSRF-Token. Com o backend atual, todas as telas, menos Esqueci a senha e Redefinir senha, vão receber 401. O frontend precisa ser ajustado (fetch com credentials: "include", guardar o csrfToken e mandar X-CSRF-Token, e VUE_APP_EXIGIR_LOGIN=true) antes de ir para produção.**
-
 ## Variáveis de ambiente
 
 O backend lê o arquivo `.env` da pasta onde é iniciado (sem o arquivo, usa as variáveis do sistema). Comece copiando o modelo: `cp .env.example .env`. O `.env` tem senhas e chaves: não vai para o Git, e no servidor só o usuário do serviço deve ler (`chmod 600 .env`).
@@ -13,10 +11,10 @@ O backend lê o arquivo `.env` da pasta onde é iniciado (sem o arquivo, usa as 
 | Variável | Obrigatória | Padrão | Para que serve |
 |---|---|---|---|
 | `DATABASE_URL` | Sim | — | Conexão com o PostgreSQL: `postgresql://USUARIO:SENHA@HOST:5432/BANCO`. Caracteres especiais na senha precisam de URL-encode (`@` vira `%40`) |
-| `PORT` | Não | `3000` | Porta HTTP do backend. Não está no `.env.example`; acrescente se precisar de outra |
-| `NODE_ENV` | Recomendado | — | Use `production` no servidor. Assim, se faltar `SMTP_HOST`, o envio de e-mail dá erro em vez de imprimir o link no log |
+| `PORT` | Não | `3000` | Porta HTTP do backend |
+| `NODE_ENV` | Recomendado | — (o `.env.example` traz `production`) | Use `production` no servidor. Assim, se faltar `SMTP_HOST`, o envio de e-mail dá erro em vez de imprimir o link no log |
 | `GEMINI_API_KEY` | Pelo menos uma das 4 chaves de IA | — | Chave do Google Gemini (1ª tentativa) |
-| `GEMINI_MODEL` | Não | `gemini-3.7-flash` | Modelo do Gemini. O `.env.example` sugere `gemini-3.8-flash` |
+| `GEMINI_MODEL` | Não | `gemini-3.8-flash,gemini-3.7-flash,gemini-2.5-flash` | Modelo(s) do Gemini, separados por vírgula: o seguinte só é tentado quando o anterior está sobrecarregado (503) |
 | `GROQ_API_KEY` | Opcional | — | Chave da Groq (2ª tentativa) |
 | `GROQ_MODEL` | Não | `meta-llama/llama-4-scout-17b-16e-instruct` | Precisa ser um modelo com visão (até 5 páginas por ficha) |
 | `OPENROUTER_API_KEY` | Opcional | — | Chave da OpenRouter, começa com `sk-or-v1-` (3ª tentativa) |
@@ -40,7 +38,6 @@ As variáveis do Vue entram no código na hora do build (`npm run build`): mudou
 | Variável | Valor em produção | Para que serve |
 |---|---|---|
 | `VUE_APP_API_URL` | `https://hemocentro.exemplo.gov.br/api` | Endereço da API, com o prefixo `/api` |
-| `VUE_APP_EXIGIR_LOGIN` | `true` | `true` = toda tela pede login. `false` só para desenvolvimento |
 
 ### Como obter as chaves das IAs
 
@@ -163,19 +160,13 @@ Onde: `/opt/hemocentro/backend`.
 npm ci
 ```
 
-`npm ci` instala exatamente as versões do `package-lock.json`. Rode no próprio servidor: `argon2` e `@napi-rs/canvas` baixam binários do sistema operacional, então `node_modules` copiado de outra máquina (principalmente de Windows para Linux) não funciona.
+`npm ci` instala exatamente as versões do `package-lock.json`, incluindo as de desenvolvimento (o build precisa do Nest CLI, do Prisma e do TypeScript). Por isso não defina `NODE_ENV=production` no terminal antes do `npm ci` (no `.env` pode). Rode no próprio servidor: `argon2` e `@napi-rs/canvas` baixam binários do sistema operacional, então `node_modules` copiado de outra máquina (principalmente de Windows para Linux) não funciona.
 
-### Passo 5 — Cliente do Prisma
+O campo `allowScripts` do `package.json` já libera os scripts de instalação de `prisma`, `@prisma/engines` e `argon2`, que o npm 11 lista como "não revisados" (aviso `npm warn allow-scripts`). Se aparecer o aviso com outro pacote numa versão futura, confira o que ele faz e libere com `npm approve-scripts <pacote>`.
 
-Onde: `/opt/hemocentro/backend`.
+O `npm audit` acusa alguns avisos `moderate` no Vitest e no Nest CLI: são ferramentas de desenvolvimento e não vão para o servidor em execução (`npm audit --omit=dev` dá 0). Não rode `npm audit fix --force`, que rebaixa o Nest CLI.
 
-```bash
-npx prisma generate
-```
-
-Gera o código de acesso ao banco em `src/generated/prisma`. Precisa vir antes do build.
-
-### Passo 6 — Estrutura do banco (migrações)
+### Passo 5 — Estrutura do banco (migrações)
 
 Onde: `/opt/hemocentro/backend` (o Prisma lê o `DATABASE_URL` do `.env`).
 
@@ -196,7 +187,7 @@ node scripts/gerar-localidades-ibge.mjs
 
 O script busca a lista na API do IBGE (`servicodados.ibge.gov.br`) e regrava o `migration.sql`. Depois que a migração foi aplicada num banco, não gere nem edite de novo: o Prisma compara o conteúdo e acusa a diferença.
 
-### Passo 7 — Build do backend
+### Passo 6 — Build do backend
 
 Onde: `/opt/hemocentro/backend`.
 
@@ -204,9 +195,9 @@ Onde: `/opt/hemocentro/backend`.
 npm run build
 ```
 
-Gera a pasta `dist/` (o servidor roda `dist/main.js`).
+Gera o cliente do Prisma (`src/generated/prisma`) e a pasta `dist/` (o servidor roda `dist/main.js`).
 
-### Passo 8 — Primeiro gestor
+### Passo 7 — Primeiro gestor
 
 Onde: `/opt/hemocentro/backend` (o script lê o `.env` da pasta atual). Uma vez só.
 
@@ -216,7 +207,7 @@ node dist/scripts/criar-primeiro-gestor.js
 
 Pergunta nome, e-mail e senha (a digitação fica oculta) e cria o usuário com perfil `GESTOR`. Se já existir um gestor, recusa e não altera nada. Os demais usuários são criados pelo gestor, no sistema (veja Primeiro gestor e primeiro acesso).
 
-### Passo 9 — Backend como serviço
+### Passo 8 — Backend como serviço
 
 Onde: no servidor, como administrador. Crie `/etc/systemd/system/hemocentro-backend.service`:
 
@@ -246,7 +237,7 @@ journalctl -u hemocentro-backend -f
 
 O `WorkingDirectory` importa: o `.env` e a pasta `uploads/` são lidos a partir dele. No log deve aparecer `Servidor rodando em http://localhost:3000/api`. Rode uma instância só: o limite de tentativas de login fica na memória do processo. Windows: rode `node dist/main.js` como serviço com NSSM (`nssm install hemocentro-backend`), apontando o diretório de início para a pasta do backend.
 
-### Passo 10 — Build do frontend
+### Passo 9 — Build do frontend
 
 Onde: no servidor (ou numa máquina de build), na pasta do frontend.
 
@@ -254,16 +245,14 @@ Onde: no servidor (ou numa máquina de build), na pasta do frontend.
 cd /opt/hemocentro
 git clone https://github.com/ThaisVDR/projeto_hemocentro.git
 cd projeto_hemocentro
-printf 'VUE_APP_API_URL=https://hemocentro.exemplo.gov.br/api\nVUE_APP_EXIGIR_LOGIN=true\n' > .env.production.local
+printf 'VUE_APP_API_URL=https://hemocentro.exemplo.gov.br/api\n' > .env.production.local
 npm ci
 npm run build
 sudo mkdir -p /var/www/hemocentro
 sudo cp -r dist/* /var/www/hemocentro/
 ```
 
-Lembre do aviso em Login e perfis: o frontend precisa do ajuste de login antes deste passo.
-
-### Passo 11 — Proxy reverso (nginx) com HTTPS
+### Passo 10 — Proxy reverso (nginx) com HTTPS
 
 Onde: no servidor, como administrador. Crie `/etc/nginx/sites-available/hemocentro`:
 
@@ -306,7 +295,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Com um nginx na frente, `TRUST_PROXY=1` no `.env`. Sem certificado da instituição, um gratuito sai com `sudo certbot --nginx -d hemocentro.exemplo.gov.br` (o domínio precisa ser público). Deixe a porta 3000 fechada para fora do servidor: só o nginx fala com o backend. No IIS, o equivalente é URL Rewrite + Application Request Routing, com o mesmo limite de upload (`maxAllowedContentLength`).
 
-### Passo 12 — Conferência
+### Passo 11 — Conferência
 
 - `curl -i https://hemocentro.exemplo.gov.br/api/auth/sessao` responde 401 em JSON: o backend está no ar atrás do proxy.
 - Abra o site, entre com o gestor e confira que a sessão continua ao recarregar a página (cookie aceito).
@@ -329,7 +318,6 @@ Onde: `/opt/hemocentro/backend`.
 ```bash
 git pull
 npm ci
-npx prisma generate
 npx prisma migrate deploy
 npm run build
 sudo systemctl restart hemocentro-backend
