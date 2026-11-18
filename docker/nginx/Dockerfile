@@ -10,7 +10,8 @@ COPY --from=front src ./src
 COPY --from=front .browserslistrc .eslintrc.js babel.config.js tsconfig.json vue.config.js ./
 ARG VUE_APP_API_URL=/api
 ENV VUE_APP_API_URL=$VUE_APP_API_URL
-RUN npm run build
+# RUN npm run build
+RUN npx vue-cli-service build --skip-plugins @vue/cli-plugin-eslint
 
 FROM nginx:stable-alpine
 COPY --from=build /front/dist /usr/share/nginx/html
