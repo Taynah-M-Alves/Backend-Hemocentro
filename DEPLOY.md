@@ -46,8 +46,23 @@ As variáveis do Vue entram no código na hora do build (`npm run build`): mudou
 **Google Gemini** (`GEMINI_API_KEY`)
 
 - Entre em `https://aistudio.google.com/apikey` com uma conta Google da instituição.
-- Clique em **Create API key** (Criar chave de API), escolha ou crie um projeto do Google Cloud e copie a chave (começa com `AIza`).
+- Clique em **Create API key** (Criar chave de API), escolha ou crie um projeto do Google Cloud e copie a chave.
 - Para sair do limite gratuito, ative o faturamento do projeto no Google Cloud (Billing).
+- **Atenção às chaves que começam com `AQ.`** (formato novo do AI Studio, inclusive em projetos pagos): em novembro de 2026 há vários relatos no fórum do Gemini de chaves `AQ.` recusadas pelo Google com `401 Unauthorized ... ACCESS_TOKEN_TYPE_UNSUPPORTED`, mesmo chamando a API direto com `curl`, sem correção oficial. Não é erro do backend. Antes de colocar a chave no `.env`, teste-a (veja "Testar a chave do Gemini" abaixo). Se for recusada:
+  1. Tente criar a chave pelo Google Cloud Console, no mesmo projeto: **APIs e serviços → Biblioteca → Generative Language API** (ativar) e **APIs e serviços → Credenciais → Criar credenciais → Chave de API**. Se ela vier no formato `AIza...`, restrinja-a à Generative Language API (**Editar chave → Restrições de API**) e use essa.
+  2. Enquanto isso, configure uma IA de reserva (OpenRouter, Groq ou OpenAI): o backend tenta a próxima quando o Gemini falha.
+  3. Gerar outra chave `AQ.` no AI Studio ou trocar o `GEMINI_MODEL` não resolve: o erro é de autenticação.
+
+**Testar a chave do Gemini** (no servidor, na pasta do backend; lê a chave do `.env` sem mostrá-la na tela):
+
+```bash
+K=$(grep '^GEMINI_API_KEY=' .env | cut -d= -f2)
+curl -s -H "x-goog-api-key: $K" https://generativelanguage.googleapis.com/v1beta/models | head -5
+```
+
+Se aparecer `"models": [`, a chave funciona. Se aparecer `"error"`, a chave foi recusada.
+
+> Nunca cole o `.env`, prints com a chave ou a senha do banco em chats, e-mails ou chamados. Se uma chave aparecer em algum lugar assim, exclua-a no painel do provedor e gere outra.
 
 **Groq** (`GROQ_API_KEY`)
 
@@ -99,7 +114,7 @@ Frontend, backend e banco cabem no mesmo servidor. Os números abaixo são para 
 
 | Item                | Mínimo              | Recomendado                                                  | Observação                                                                                                                                                                                                                                                  |
 | ------------------- | ------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sistema operacional | Ubuntu Server 22.04 | Ubuntu Server 24.04 LTS                                      | Windows Server 2019 ou mais novo também serve (IIS + NSSM); o roteiro usa Linux                                                                                                                                                                             |
+| Sistema operacional | Ubuntu Server 22.04 | Ubuntu Server 24.04 LTS                                      | A Opção com Docker também foi testada no Ubuntu Server 26.04 LTS. Windows Server 2019 ou mais novo também serve (IIS + NSSM); o roteiro usa Linux                                                                                                         |
 | CPU                 | 2 vCPU              | 4 vCPU                                                       | A conversão do PDF em imagem e o Argon2 do login usam CPU                                                                                                                                                                                                   |
 | Memória RAM         | 4 GB                | 8 GB                                                         | Node, PostgreSQL e nginx juntos; cada ficha (até 18 MB) é aberta na memória para virar imagem                                                                                                                                                               |
 | Disco               | 60 GB SSD           | 200 GB SSD, mais um disco ou servidor separado para o backup | Cada ficha escaneada tem de 4 a 18 MB (média de uns 10 MB): 1.000 fichas ≈ 10 GB, 10.000 ≈ 100 GB. O banco em si ocupa poucos GB                                                                                                                            |
@@ -343,11 +358,11 @@ sudo ln -s /etc/nginx/sites-available/hemocentro /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Com um nginx na frente, `TRUST_PROXY=1` no `.env`. Sem certificado da instituição, um gratuito sai com `sudo certbot --nginx -d hemocentro.exemplo.gov.br` (o domínio precisa ser público). Deixe a porta 3000 fechada para fora do servidor: só o nginx fala com o backend. No IIS, o equivalente é URL Rewrite + Application Request Routing, com o mesmo limite de upload (`maxAllowedContentLength`).
+Com um nginx na frente, `TRUST_PROXY=1` no `.env`. Sem certificado da instituição, um gratuito sai com `sudo certbot --nginx -d hemocentro.exemplo.gov.br` (o domínio precisa ser público). Como os outros computadores da rede passam a confiar no certificado está em [Certificado e nome do servidor nos computadores da rede](#certificado-e-nome-do-servidor-nos-computadores-da-rede). Deixe a porta 3000 fechada para fora do servidor: só o nginx fala com o backend. No IIS, o equivalente é URL Rewrite + Application Request Routing, com o mesmo limite de upload (`maxAllowedContentLength`).
 
 ### Passo 11 — Conferência
 
-- `curl -i https://hemocentro.exemplo.gov.br/api/auth/sessao` responde 401 em JSON: o backend está no ar atrás do proxy.
+- `curl -i https://hemocentro.exemplo.gov.br/api/auth/sessao` responde 401 em JSON: o backend está no ar atrás do proxy. No Windows, use `curl.exe`; se o certificado for de teste (mkcert), acrescente `--ssl-no-revoke` (veja Problemas comuns).
 - Abra o site, entre com o gestor e confira que a sessão continua ao recarregar a página (cookie aceito).
 - Use Esqueci a senha com um usuário de teste e confira se o e-mail chega com o link apontando para o site.
 - Envie uma ficha de teste e acompanhe no log: `Ficha N lida (gemini).` A ficha deve aparecer em Aguardando revisão.
@@ -386,9 +401,88 @@ No frontend: `git pull`, `npm ci`, `npm run build` e copiar `dist/` de novo para
 | 403 "Origem não permitida."                                            | O endereço do site não está em `CORS_ORIGINS` (confira https, www e porta, sem barra no fim)                                   |
 | 403 "Token de proteção inválido."                                      | O frontend não mandou `X-CSRF-Token` (veja o aviso sobre o login do frontend)                                                  |
 | Todas as fichas vão para `FALHA_LEITURA`                               | Sem chave de IA, sem saldo ou sem saída para a internet. O motivo aparece no log e no evento `LEITURA_FALHOU` da auditoria     |
+| Log: `Gemini falhou ... 401 Unauthorized ... ACCESS_TOKEN_TYPE_UNSUPPORTED` | Chave `AQ.` recusada pelo Google (problema do lado do Google). Veja "Atenção às chaves que começam com `AQ.`" em Como obter as chaves das IAs. Depois de trocar a chave, reprocesse as fichas em `FALHA_LEITURA` |
+| Build do frontend: `[eslint] ... error` e `Build failed with errors`   | Erros de padrão no código do frontend. Gere o build com `--skip-plugins @vue/cli-plugin-eslint` (Passo 9) |
+| `curl.exe` no Windows: `CRYPT_E_NO_REVOCATION_CHECK (0x80092012)`      | Certificado de teste (mkcert) não tem endereço de revogação e o `curl` do Windows desiste. O HTTPS está funcionando: use `curl.exe --ssl-no-revoke -i ...`. Navegadores não bloqueiam por isso, e certificados da TI ou do certbot não têm esse problema |
+| Aviso "Sua conexão não é particular" em outro computador                | Esse computador não confia na autoridade que assinou o certificado. Veja [Certificado e nome do servidor nos computadores da rede](#certificado-e-nome-do-servidor-nos-computadores-da-rede) |
 | Upload grande responde 413                                             | `client_max_body_size` do nginx menor que o envio                                                                              |
 | Uma pessoa bloqueia o login de todos (429)                             | `TRUST_PROXY` vazio atrás do proxy: todo mundo parece ter o mesmo IP                                                           |
 | E-mail não chega                                                       | Confira `SMTP_*` e o log (`Falha no esqueci-senha`). No Gmail, a senha comum não funciona: precisa da senha de app             |
+
+## Certificado e nome do servidor nos computadores da rede
+
+Vale para os dois caminhos (com e sem Docker). O HTTPS tem duas partes, e elas ficam em lugares diferentes:
+
+| Arquivo                                                        | Onde fica                                                        | Em quantas máquinas                       |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
+| Certificado do site e a chave dele (`hemocentro.crt` e `.key`) | Só no **servidor** (`certs/` no Docker, `/etc/ssl` sem Docker)   | Uma vez só                                |
+| Certificado **raiz** da autoridade que assinou o do site       | Na lista de autoridades confiáveis de **cada computador cliente** | Em todos os que vão abrir o sistema       |
+
+Quem decide se confia no site é o navegador de cada computador, olhando a lista de autoridades **daquela máquina**. Instalar a raiz num computador não faz os outros confiarem. Um computador sem a raiz consegue usar o sistema, mas mostra "Sua conexão não é particular" e o usuário precisa clicar em **Avançado → Continuar**, o que acostuma as pessoas a ignorar avisos de segurança.
+
+### De onde vem o certificado: três situações
+
+| Situação                                                                                    | O que fazer nos computadores da rede                                                                        |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **A. A TI tem autoridade certificadora interna e as máquinas estão no domínio (Active Directory)** | Nada. A TI já distribui a raiz para todas as máquinas do domínio por GPO. Peça a ela o certificado para o nome do servidor |
+| **B. Certificado de autoridade pública** (Let's Encrypt via `certbot`, ou um comprado)       | Nada. Todos os navegadores já confiam. Exige um domínio público                                             |
+| **C. Certificado gerado por vocês** (mkcert ou outra autoridade própria, sem domínio)        | Instalar a raiz em cada computador, uma vez (abaixo). É o caso do ambiente de teste                         |
+
+
+### Dá para instalar uma vez e deixar padrão para todos?
+
+Sim, de duas formas:
+
+- **Com domínio (Active Directory), pela TI:** abra o **Gerenciamento de Política de Grupo**, edite uma GPO aplicada aos computadores e vá em **Configuração do Computador → Políticas → Configurações do Windows → Configurações de Segurança → Políticas de Chave Pública → Autoridades de Certificação Raiz Confiáveis → Importar**, escolhendo o `rootCA.crt`. Todas as máquinas do domínio passam a confiar na próxima atualização de política (ou com `gpupdate /force`). Máquinas novas recebem sozinhas.
+- **Sem domínio:** coloque o `rootCA.crt` numa pasta compartilhada da rede e rode em cada computador, uma vez, no PowerShell **como administrador**:
+
+  ```powershell
+  certutil -addstore -f Root \\SERVIDOR-DE-ARQUIVOS\hemocentro\rootCA.crt
+  ```
+
+  Depois, feche e abra o navegador. Não há como fazer isso só no servidor: a confiança é guardada em cada cliente.
+
+Outros clientes:
+
+| Cliente                  | Como instalar a raiz                                                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows (Chrome e Edge)  | `certutil -addstore -f Root rootCA.crt` como administrador, ou dois cliques no arquivo → **Instalar Certificado → Máquina Local → Autoridades de Certificação Raiz Confiáveis** |
+| Firefox                  | Usa a própria lista. Em `about:config`, mude `security.enterprise_roots.enabled` para `true` para ele aceitar as raízes do Windows      |
+| Linux                    | `sudo cp rootCA.crt /usr/local/share/ca-certificates/hemocentro-root.crt && sudo update-ca-certificates`                               |
+| Celulares                | Possível, mas trabalhoso (perfil de certificado no iOS, "Certificado de CA" no Android). Prefira as situações A ou B se houver celulares |
+
+### Certificado de teste com mkcert (situação C)
+
+No servidor, na pasta onde ficam os certificados (`/opt/hemocentro/backend` no Docker):
+
+```bash
+sudo apt install -y mkcert
+mkcert -install
+mkdir -p certs
+mkcert -cert-file certs/hemocentro.crt -key-file certs/hemocentro.key hemocentro.local 192.168.1.200
+ls certs
+```
+
+- Troque `hemocentro.local` e `192.168.1.200` pelo nome e pelo IP reais do servidor. O certificado só vale para os nomes listados no comando: se alguém abrir o sistema por um nome ou IP que não está na lista, aparece o aviso.
+- Os parâmetros são `-cert-file` e `-key-file`, com o hífen grudado. Com espaço (`- key-file`) o mkcert responde `ERROR: "certs/hemocentro.key" is not a valid hostname` e não gera nada.
+- A raiz que vai para os clientes fica na pasta mostrada por `mkcert -CAROOT` (normalmente `~/.local/share/mkcert/rootCA.pem`). Para copiá-la para um computador Windows, no PowerShell dele: `scp USUARIO@IP_DO_SERVIDOR:/home/USUARIO/.local/share/mkcert/rootCA.pem $HOME\Desktop\rootCA.crt`.
+- **Nunca copie o `rootCA-key.pem`** para fora do servidor: com ele, qualquer pessoa cria certificados em que todos os seus computadores confiam.
+- O certificado do site gerado pelo mkcert vence em pouco mais de 2 anos. Para renovar, rode o último `mkcert` de novo e reinicie o nginx (`docker compose restart nginx` ou `sudo systemctl reload nginx`). Os clientes não precisam de nada, porque a raiz continua a mesma.
+
+### O nome do servidor
+
+Os computadores também precisam saber que `hemocentro.local` (ou o nome escolhido) aponta para o IP do servidor:
+
+- **Com DNS interno:** a TI cria o nome no DNS e nenhum computador precisa de ajuste.
+- **Sem DNS (teste):** em cada computador, no PowerShell como administrador:
+
+  ```powershell
+  Add-Content C:\Windows\System32\drivers\etc\hosts "`n192.168.1.200   hemocentro.local"
+  ```
+
+  No Linux, acrescente a mesma linha em `/etc/hosts`. Celulares não deixam editar o `hosts`: para eles, só com DNS.
+
+O endereço que os usuários digitam precisa estar no `CORS_ORIGINS` e no `FRONTEND_URL` do `.env` (ex.: `https://hemocentro.local`). Se também forem acessar pelo IP, acrescente-o: `CORS_ORIGINS=https://hemocentro.local,https://192.168.1.200`.
 
 ## Opção com Docker
 
@@ -401,6 +495,37 @@ Alternativa ao passo a passo acima, para um servidor com Docker Engine e o plugi
 | `nginx`   | Serve o build do frontend e repassa `/api` ao backend, com HTTPS                                                  |
 
 Só o nginx abre portas (80 e 443). O backend (3000) e o banco (5432) ficam na rede interna do Docker, sem acesso de fora. Os requisitos de hardware, o certificado HTTPS e o acesso de saída para as IAs e o SMTP são os mesmos do roteiro acima.
+
+### Docker passo 0 — Docker Engine e firewall
+
+Onde: no servidor, uma vez só. Pule se `docker compose version` já responder 2.17 ou mais novo.
+
+Instale o **Docker Engine** pelo repositório oficial da Docker (comandos para Ubuntu; para outras distribuições, veja `https://docs.docker.com/engine/install/`). Não use o pacote `docker` do snap nem o Docker Desktop.
+
+```bash
+sudo apt install -y ca-certificates curl git
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo usermod -aG docker $USER
+```
+
+Saia e entre de novo no SSH (sem isso, o `docker` responde `permission denied`) e confira com `docker version` (precisa mostrar **Client** e **Server**) e `docker compose version`.
+
+Firewall (libere o SSH **antes** do `enable`, senão a sessão cai):
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+sudo ufw status
+```
+
+As portas publicadas pelo Docker passam por cima do `ufw`. Aqui isso não é problema, porque o compose só publica a 80 e a 443; o backend (3000) e o banco (5432) não saem da rede interna do Docker.
 
 ### Docker passo 1 — Código
 
@@ -425,13 +550,36 @@ chmod 600 .env
 
 Preencha como no Passo 3, com duas diferenças: acrescente `POSTGRES_PASSWORD=` com a senha do banco (só letras e números, porque ela entra no endereço de conexão sem URL-encode) e não precisa de `DATABASE_URL`, `NODE_ENV`, `PORT` nem `TRUST_PROXY`, que o compose já define.
 
-Copie o certificado e a chave para a pasta `certs/` com estes nomes (a pasta não vai para o Git):
+Exemplo das linhas que mudam, para um servidor chamado `hemocentro.local`:
 
 ```bash
-mkdir -p certs
-cp /caminho/do/certificado.crt certs/hemocentro.crt
-cp /caminho/da/chave.key certs/hemocentro.key
+POSTGRES_PASSWORD=SenhaSoComLetrasENumeros
+GEMINI_API_KEY=...
+CORS_ORIGINS=https://hemocentro.local
+FRONTEND_URL=https://hemocentro.local
+FUSO_HORARIO=America/Cuiaba
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USUARIO=...
+SMTP_SENHA=...
+SMTP_REMETENTE=Hemocentro <...>
 ```
+
+Antes de seguir, teste a chave do Gemini (veja "Testar a chave do Gemini" em Como obter as chaves das IAs): chaves `AQ.` podem ser recusadas pelo Google.
+
+Coloque o certificado e a chave na pasta `certs/` com estes nomes (a pasta não vai para o Git). Sem os dois arquivos, o nginx não sobe.
+
+- Se a TI tiver os certificados (situações A e B de [Certificado e nome do servidor nos computadores da rede](#certificado-e-nome-do-servidor-nos-computadores-da-rede)), copie os arquivos dela. Troque os caminhos pelos dos arquivos recebidos: o comando não funciona se for colado com `/caminho/do/...` literal (`cp: cannot stat ... No such file or directory`).
+
+  ```bash
+  mkdir -p certs
+  cp /caminho/do/certificado.crt certs/hemocentro.crt
+  cp /caminho/da/chave.key certs/hemocentro.key
+  ```
+
+- **Se ainda não há certificado** (teste), gere um com o mkcert, como em [Certificado de teste com mkcert](#certificado-de-teste-com-mkcert-situação-c).
+
+Confira com `ls certs`: precisam aparecer `hemocentro.crt` e `hemocentro.key`.
 
 O frontend é gerado com `VUE_APP_API_URL=/api` (mesmo endereço do site), então não precisa do `.env.production.local` do Passo 9.
 
@@ -444,7 +592,23 @@ docker compose up -d --build
 docker compose logs -f backend
 ```
 
-No log do backend devem aparecer as migrações aplicadas e `Servidor rodando em http://localhost:3000/api`. Os containers voltam sozinhos depois de um reinício do servidor.
+No log do backend devem aparecer as migrações aplicadas e `Servidor rodando em http://localhost:3000/api`. `docker compose ps` deve mostrar `db`, `backend` e `nginx` como **Up**. Os containers voltam sozinhos depois de um reinício do servidor.
+
+**Quanto demora:** o primeiro `up --build` baixa as imagens (Postgres, Node e nginx, cerca de 350 MB) e roda o `npm ci` do backend e do frontend. Com internet boa, uns 10 minutos; com internet lenta, passa de 30 minutos (em um teste com Wi-Fi a ~50 kB/s, só a imagem do Postgres levou 35 minutos). Não interrompa. Os builds seguintes reaproveitam o cache e só refazem o que mudou.
+
+**Se o build do frontend falhar com `[eslint] ... error`** (por exemplo `Unexpected any. Specify a different type` ou `Name "Filter" is reserved`) e `target nginx: failed to solve: process "/bin/sh -c npm run build" did not complete successfully`:
+
+```bash
+sed -i 's|^RUN npm run build$|RUN npx vue-cli-service build --skip-plugins @vue/cli-plugin-eslint|' docker/nginx/Dockerfile
+grep -n "vue-cli-service" docker/nginx/Dockerfile
+docker compose up -d --build
+```
+
+O `grep` tem que mostrar `RUN npx vue-cli-service build --skip-plugins @vue/cli-plugin-eslint`. Cuidados:
+
+- O arquivo é o `docker/nginx/Dockerfile` (começa com `# Frontend (build do Vue)`), não o `Dockerfile` da raiz, que é o do backend e não deve ser alterado.
+- O nome é `@vue/cli-plugin-eslint`, no singular. Com `cli-plugins-eslint` o Vue não acha o plugin, o ESLint roda do mesmo jeito e o build falha de novo.
+- A mudança vale só para a cópia do servidor: um `git pull` pode desfazê-la. Para não repetir, ela precisa ir para o repositório do backend.
 
 ### Docker passo 4 — Primeiro gestor
 
@@ -454,7 +618,39 @@ Uma vez só:
 docker compose exec backend node dist/scripts/criar-primeiro-gestor.js
 ```
 
-Depois, faça a conferência do Passo 11.
+A senha não aparece enquanto é digitada. Depois, faça a conferência do Passo 11 a partir de um computador da rede (Docker passo 5).
+
+### Docker passo 5 — Conferir de outro computador da rede
+
+Antes, prepare o computador como em [Certificado e nome do servidor nos computadores da rede](#certificado-e-nome-do-servidor-nos-computadores-da-rede) (raiz do certificado e nome do servidor). Depois, no PowerShell desse computador:
+
+```powershell
+Test-NetConnection hemocentro.local -Port 443
+curl.exe -i https://hemocentro.local/api/auth/sessao
+```
+
+- `TcpTestSucceeded : True`: o computador alcança o servidor. Se der `False`, confira o firewall (`sudo ufw status` no servidor) e o nome (DNS ou `hosts`).
+- O `curl.exe` tem que responder `HTTP/1.1 401` em JSON. Com certificado de teste (mkcert), use `curl.exe --ssl-no-revoke -i ...`: sem isso, o `curl` do Windows responde `CRYPT_E_NO_REVOCATION_CHECK`, porque certificados do mkcert não têm endereço de revogação. O HTTPS está funcionando; navegadores não bloqueiam por isso.
+
+Feche **todas** as janelas do navegador (para ele carregar a raiz nova), abra `https://hemocentro.local`, confira o cadeado sem aviso, entre com o gestor e recarregue a página (F5): a sessão tem que continuar. Siga com o resto do Passo 11 (Esqueci a senha, ficha de teste) e reinicie o servidor (`sudo reboot`) para confirmar que tudo volta sozinho.
+
+### Mudar o .env depois de subir
+
+```bash
+nano .env
+docker compose up -d
+docker compose exec backend printenv CORS_ORIGINS   # troque pelo nome da variável alterada
+```
+
+O `docker compose up -d` percebe a mudança e recria só o backend, sem build. Cuidados:
+
+| Situação                                         | O que fazer                                                                                                                                                                                         |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker compose restart backend`                 | **Não serve**: reinicia com as variáveis antigas. Use `docker compose up -d`                                                                                                                        |
+| Trocou a chave de IA                             | `docker compose up -d` e reprocesse as fichas que ficaram em `FALHA_LEITURA`                                                                                                                         |
+| Trocou o `POSTGRES_PASSWORD` depois da 1ª subida | O Postgres só usa essa variável ao criar o banco. Trocar só no `.env` faz o backend falhar com erro de autenticação. Troque também no banco: `docker compose exec db psql -U hemocentro -c "ALTER USER hemocentro PASSWORD 'NovaSenha';"` e depois `docker compose up -d` |
+| Trocou o certificado em `certs/`                 | `docker compose restart nginx` (aqui o `restart` serve: o nginx relê os arquivos ao iniciar)                                                                                                         |
+| Mudou o código do frontend ou do backend         | `docker compose up -d --build`                                                                                                                                                                       |
 
 ### Backup com Docker
 
@@ -472,3 +668,42 @@ docker compose up -d --build
 ```
 
 As migrações novas rodam sozinhas quando o backend reinicia. Não use `docker compose down -v`: o `-v` apaga os volumes, ou seja, o banco e as fichas.
+
+Se o `git pull` do backend reclamar de alterações locais em `docker/nginx/Dockerfile` (a troca do ESLint feita no servidor), confira se a versão nova do repositório já traz a correção. Se trouxer, descarte a cópia local com `git checkout docker/nginx/Dockerfile` e rode o `git pull` de novo.
+
+### Restaurar um backup com Docker
+
+Teste a restauração pelo menos uma vez: backup que nunca foi restaurado não está testado.
+
+```bash
+D=2026-11-18   # data do backup
+docker compose exec -T db pg_restore -U hemocentro -d hemocentro --clean --if-exists < /backup/hemocentro-$D.dump
+docker compose exec -T backend tar xzf - -C /app < /backup/uploads-$D.tar.gz
+docker compose restart backend
+```
+
+Backup automático todo dia às 2h (`crontab -e`, no usuário que roda o Docker):
+
+```
+0 2 * * * cd /opt/hemocentro/backend && docker compose exec -T db pg_dump -Fc -U hemocentro hemocentro > /backup/hemocentro-$(date +\%F).dump && docker compose exec -T backend tar czf - -C /app uploads > /backup/uploads-$(date +\%F).tar.gz
+```
+
+O `/backup` precisa ficar fora do servidor (outro disco montado ou outro servidor). Os comandos com `>` são para o shell do Linux: no PowerShell do Windows, o `>` corrompe arquivos binários como o `.dump`.
+
+### Problemas comuns com Docker
+
+| Sintoma                                                                  | Causa provável e solução                                                                                                                         |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `permission denied ... docker.sock`                                      | Faltou sair e entrar de novo no SSH depois do `usermod -aG docker` (Docker passo 0)                                                               |
+| `defina POSTGRES_PASSWORD no .env`                                       | A linha está comentada (`# POSTGRES_PASSWORD=`) ou vazia no `.env`                                                                                |
+| `cp: cannot stat '/caminho/do/certificado.crt'`                          | O comando foi colado com o caminho de exemplo. Use o caminho real do arquivo da TI, ou gere um certificado de teste com o mkcert                   |
+| mkcert: `ERROR: "certs/hemocentro.key" is not a valid hostname`          | Espaço no parâmetro (`- key-file`). O certo é `-key-file`                                                                                         |
+| `nginx` reiniciando ou fora do `docker compose ps`                       | Falta `certs/hemocentro.crt` ou `certs/hemocentro.key`. Veja `docker compose logs nginx --tail 30`                                                |
+| `target nginx: failed to solve ... npm run build` com `[eslint] ... error` | Erros de ESLint no frontend. Veja "Se o build do frontend falhar" no Docker passo 3                                                              |
+| Download das imagens muito lento                                         | Internet do servidor. Não interrompa; os builds seguintes usam o cache                                                                            |
+| Log: `Gemini falhou ... 401 ... ACCESS_TOKEN_TYPE_UNSUPPORTED`           | Chave `AQ.` recusada pelo Google. Veja "Atenção às chaves que começam com `AQ.`"                                                                  |
+| Mudou o `.env` e nada mudou                                              | Usou `restart`. Rode `docker compose up -d`                                                                                                       |
+| Backend com erro de autenticação no banco depois de mudar o `.env`       | `POSTGRES_PASSWORD` trocado só no `.env`. Veja "Mudar o .env depois de subir"                                                                     |
+| Outro computador mostra aviso de certificado                             | Falta a raiz nesse computador, o navegador não foi reaberto, ou o nome digitado não está no certificado                                           |
+| 403 "Origem não permitida."                                              | O endereço digitado não está no `CORS_ORIGINS`. Corrija e rode `docker compose up -d`                                                             |
+| Entra e cai fora em seguida                                              | Abriu com `http://`. Use `https://`                                                                                                               |
