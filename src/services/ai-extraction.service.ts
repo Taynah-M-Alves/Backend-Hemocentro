@@ -165,7 +165,10 @@ export class AiExtractionService {
         const dados = await this.lerEmPartes(extrair, paginas, tamanho).catch(
           (err) => {
             // JSON inválido = resposta cortada no meio: tenta de novo com menos páginas por pedido
-            if (tamanho <= PAGINAS_POR_PARTE || !/JSON/.test(mensagemDeErro(err)))
+            if (
+              Math.min(tamanho, paginas.length) <= PAGINAS_POR_PARTE ||
+              !/JSON/.test(mensagemDeErro(err))
+            )
               throw err;
             this.logger.warn(
               `${nome}: resposta cortada — lendo de novo de ${PAGINAS_POR_PARTE} em ${PAGINAS_POR_PARTE} páginas…`,
@@ -263,12 +266,19 @@ export class AiExtractionService {
             responseMimeType: 'application/json',
             temperature: TEMPERATURA,
             maxOutputTokens: MAX_TOKENS,
+            // O raciocínio entra no maxOutputTokens: no padrão (alto) ele comia a saída e cortava o JSON
+            ...(modelo.startsWith('gemini-3') && {
+              thinkingConfig: { thinkingLevel: 'low' },
+            }),
           },
         },
         { timeout: TIMEOUT_MS },
       );
       try {
         const result = await model.generateContent(conteudo);
+        const motivo = result.response.candidates?.[0]?.finishReason;
+        if (motivo === 'MAX_TOKENS')
+          throw new Error('Resposta cortada no limite de tokens (JSON incompleto).');
         return this.parseJson(result.response.text());
       } catch (err) {
         erros.push(`${modelo}: ${mensagemDeErro(err)}`);
@@ -289,7 +299,9 @@ export class AiExtractionService {
     modelo: string,
     paginas: PaginaImagem[],
   ) {
-    await new Promise((ok) => setTimeout(ok, this.groqLivreEm - Date.now()));
+    await new Promise((ok) =>
+      setTimeout(ok, Math.max(0, this.groqLivreEm - Date.now())),
+    );
     this.groqLivreEm = Date.now() + GROQ_INTERVALO_MS;
     const completion = await cliente.chat.completions.create({
       model: modelo,
