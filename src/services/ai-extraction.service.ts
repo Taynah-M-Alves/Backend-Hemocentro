@@ -190,6 +190,7 @@ export class AiExtractionService {
         inlineData: { mimeType: 'image/jpeg', data: p.jpeg.toString('base64') },
       })),
     ];
+    const erros: string[] = []; // um por modelo tentado, para o erro final mostrar todos
 
     for (const [i, modelo] of modelos.entries()) {
       const model = cliente.getGenerativeModel(
@@ -207,8 +208,10 @@ export class AiExtractionService {
         const result = await model.generateContent(conteudo);
         return this.parseJson(result.response.text());
       } catch (err) {
+        erros.push(`${modelo}: ${mensagemDeErro(err)}`);
         const proximo = modelos[i + 1];
-        if (!proximo || (err as { status?: number }).status !== 503) throw err;
+        if (!proximo || (err as { status?: number }).status !== 503)
+          throw new Error(erros.join(' ; '));
         this.logger.warn(
           `Gemini ${modelo} sobrecarregado (503) — tentando ${proximo}…`,
         );
