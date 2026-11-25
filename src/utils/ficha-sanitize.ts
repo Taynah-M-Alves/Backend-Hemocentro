@@ -42,7 +42,7 @@ export function sanitizarFicha(bruto: unknown): FichaExtraida {
 
 /**
  * Lança erro se faltar o mínimo para identificar o paciente (nome + data de nascimento).
- * Na leitura, faz o AiExtractionService tentar a próxima IA; na aprovação, vira 422.
+ * Usado na aprovação (vira 422). Na leitura a ficha segue para revisão mesmo sem esses dados.
  */
 export function exigirIdentificacao(ficha: FichaExtraida): void {
   const faltando = [
@@ -268,7 +268,9 @@ function nomePessoa(v: unknown): string | null {
     .split(' ')
     .filter((p) => p.replace(/\W/g, '').length >= 2);
   const valido =
-    palavras.length >= 2 && palavras.every((p) => /[a-zà-ÿ]/.test(p));
+    palavras.length >= 2 &&
+    // Nome todo em maiúsculas (impresso) vale; misturado sem minúscula é lixo de leitura
+    (nome === nome.toUpperCase() || palavras.every((p) => /[a-zà-ÿ]/.test(p)));
   return valido ? nome : null;
 }
 

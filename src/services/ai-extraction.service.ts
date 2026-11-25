@@ -11,10 +11,7 @@ import type {
   TentativaExtracao,
 } from '../types/ocr.types.js';
 import { mensagemDeErro } from '../utils/erros.js';
-import {
-  exigirIdentificacao,
-  sanitizarFicha,
-} from '../utils/ficha-sanitize.js';
+import { sanitizarFicha } from '../utils/ficha-sanitize.js';
 
 /** Tempo máximo esperando uma IA antes de desistir e tentar a próxima. */
 const TIMEOUT_MS = 900_000;
@@ -217,7 +214,7 @@ export class AiExtractionService {
       ficha.pesquisas.push(...p.pesquisas);
       ficha.kits.push(...p.kits);
     }
-    exigirIdentificacao(ficha);
+    // Sem nome ou nascimento a ficha vai mesmo assim para revisão (com alerta); a aprovação exige os dois
     return ficha;
   }
 
@@ -325,7 +322,7 @@ export class AiExtractionService {
 
   // ── Resposta ──────────────────────────────────────────────────────────────
 
-  /** Remove um eventual bloco ```json``` e confere os campos (nome + nascimento: em lerEmPartes). */
+  /** Remove um eventual bloco ```json``` e confere os campos. */
   private parseJson(raw: string): FichaExtraida {
     const limpo = raw
       .replace(/^```(?:json)?\s*/i, '')
