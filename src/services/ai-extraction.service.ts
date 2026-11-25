@@ -22,8 +22,11 @@ const TIMEOUT_MS = 900_000;
  * Inclui o "raciocínio" do modelo, que gasta boa parte do limite. Com 8000 o Gemini cortava o
  * JSON no meio depois que o prompt passou a pedir kits e fenotipagem.
  */
-const MAX_TOKENS = 20000;
+const MAX_TOKENS = 32_000; // máximo do gpt-4.1
 const TEMPERATURA = 0.1;
+/** Fichas maiores que isso são lidas em partes e juntadas no fim. A Groq só aceita 3 imagens. */
+const PAGINAS_POR_PARTE = 12;
+const PAGINAS_POR_PARTE_GROQ = 3;
 
 /** Modelos de cada IA (o .env só tem as chaves). Todos precisam ler imagens. */
 const MODELOS = {
@@ -147,7 +150,11 @@ export class AiExtractionService {
       const inicio = Date.now();
       try {
         this.logger.log(`Enviando ${paginas.length} página(s) ao ${nome}…`);
-        const dados = await extrair(paginas);
+        const dados = await this.lerEmPartes(
+          extrair,
+          paginas,
+          id === 'groq' ? PAGINAS_POR_PARTE_GROQ : PAGINAS_POR_PARTE,
+        );
         tentativas.push({
           provedor: id,
           sucesso: true,
@@ -174,6 +181,44 @@ export class AiExtractionService {
       .map((t) => `${t.provedor}: ${t.erro}`)
       .join(' | ');
     throw new Error(`Todas as IAs falharam. Detalhes: [${detalhes}]`);
+  }
+
+  /** Lê as páginas em grupos de `tamanho` e junta tudo numa ficha só. */
+  private async lerEmPartes(
+    extrair: Extrair,
+    paginas: PaginaImagem[],
+    tamanho: number,
+  ): Promise<FichaExtraida> {
+    const partes: FichaExtraida[] = [];
+    for (let i = 0; i < paginas.length; i += tamanho) {
+      if (paginas.length > tamanho)
+        this.logger.log(
+          `Parte: páginas ${i + 1} a ${Math.min(i + tamanho, paginas.length)}…`,
+        );
+      const parte = await extrair(paginas.slice(i, i + tamanho));
+      // A IA numera as páginas de cada parte a partir de 1
+      for (const item of [
+        ...parte.transfusoes,
+        ...parte.pesquisas,
+        ...parte.kits,
+      ])
+        if (item.pagina) item.pagina += i;
+      partes.push(parte);
+    }
+
+    const [ficha, ...resto] = partes;
+    for (const p of resto) {
+      ficha.dataAtendimento ??= p.dataAtendimento;
+      ficha.motivo ??= p.motivo;
+      // Cabeçalho do paciente: fica o primeiro valor lido em qualquer parte
+      for (const [campo, valor] of Object.entries(p.paciente))
+        (ficha.paciente as unknown as Record<string, unknown>)[campo] ??= valor;
+      ficha.transfusoes.push(...p.transfusoes);
+      ficha.pesquisas.push(...p.pesquisas);
+      ficha.kits.push(...p.kits);
+    }
+    exigirIdentificacao(ficha);
+    return ficha;
   }
 
   // ── Provedores ────────────────────────────────────────────────────────────
@@ -220,7 +265,7 @@ export class AiExtractionService {
     throw new Error('Nenhum modelo do Gemini.');
   }
 
-  /** O qwen3.8 aceita no máximo 3 imagens por pedido; fichas maiores caem para a próxima IA. */
+  /** O qwen3.8 aceita no máximo 3 imagens por pedido (por isso lerEmPartes manda de 3 em 3). */
   private async chamarGroq(
     cliente: Groq,
     modelo: string,
@@ -280,15 +325,13 @@ export class AiExtractionService {
 
   // ── Resposta ──────────────────────────────────────────────────────────────
 
-  /** Remove um eventual bloco ```json```, confere os campos e exige nome + nascimento. */
+  /** Remove um eventual bloco ```json``` e confere os campos (nome + nascimento: em lerEmPartes). */
   private parseJson(raw: string): FichaExtraida {
     const limpo = raw
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```$/, '')
       .trim();
     if (!limpo) throw new Error('A IA respondeu vazio.');
-    const ficha = sanitizarFicha(JSON.parse(limpo));
-    exigirIdentificacao(ficha);
-    return ficha;
+    return sanitizarFicha(JSON.parse(limpo));
   }
 }

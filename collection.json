@@ -276,7 +276,7 @@
                 "lotes"
               ]
             },
-            "description": "Envia 1 a 30 arquivos (PDF, JPEG ou PNG, até 50 MB e 20 páginas cada). Cada arquivo = uma ficha de um paciente. Responde 202 sem esperar a IA; a leitura segue em segundo plano. No Postman, selecione o arquivo no campo \"arquivos\" (repita a linha para enviar vários).",
+            "description": "Envia 1 a 30 arquivos (PDF, JPEG ou PNG, até 110 MB e 30 páginas cada). Cada arquivo = uma ficha de um paciente. Responde 202 sem esperar a IA; a leitura segue em segundo plano. No Postman, selecione o arquivo no campo \"arquivos\" (repita a linha para enviar vários).",
             "body": {
               "mode": "formdata",
               "formdata": [

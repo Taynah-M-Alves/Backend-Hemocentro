@@ -8,12 +8,12 @@ import * as path from 'path';
 /** Pasta onde as fichas enviadas ficam guardadas (o documento original digitalizado). */
 export const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 
-/** As fichas reais têm cerca de 3,4 MB por página; 50 MB cabe uma ficha de até ~14 páginas. */
-const TAMANHO_MAXIMO_BYTES = 50 * 1024 * 1024; // 50 MB
-/** Mais arquivos por envio faria uma única requisição passar de 1 GB. */
+/** As fichas reais têm cerca de 3,4 MB por página; 110 MB cabe uma ficha de 30 páginas. */
+const TAMANHO_MAXIMO_BYTES = 110 * 1024 * 1024; // 110 MB
+/** Com 110 MB cada, um envio pode chegar a 3,3 GB (client_max_body_size do nginx). */
 export const MAXIMO_ARQUIVOS_POR_ENVIO = 30;
 /** O que pesa no custo e no tempo da IA é o número de páginas. */
-export const MAXIMO_PAGINAS_POR_ARQUIVO = 20;
+export const MAXIMO_PAGINAS_POR_ARQUIVO = 30;
 
 /** Tipos aceitos e a extensão gravada em disco (derivada do tipo, nunca do nome enviado). */
 const EXTENSAO_POR_MIME: Record<string, string> = {

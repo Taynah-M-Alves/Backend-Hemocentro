@@ -75,7 +75,7 @@ Se aparecer `"models": [`, a chave funciona. Se aparecer `"error"`, a chave foi 
 - Entre em `https://platform.openai.com/api-keys` e clique em **Create new secret key**. Copie a chave (começa com `sk-`).
 - Adicione créditos em **Settings → Billing**; sem saldo, toda chamada falha.
 
-Basta uma chave para o sistema funcionar; as outras são reserva quando a primeira falha. Os modelos de cada IA ficam fixos em `src/services/ai-extraction.service.ts` (constante `MODELOS`); para trocar, edite ali e gere a imagem de novo. A Groq (`qwen/qwen3.8-27b`) só lê fichas de até 3 páginas; as maiores passam direto para a próxima IA. Ao iniciar, o backend avisa no log quais IAs ficaram desativadas por falta de chave (`GROQ_API_KEY não definida — Groq desativado.`).
+Basta uma chave para o sistema funcionar; as outras são reserva quando a primeira falha. Os modelos de cada IA ficam fixos em `src/services/ai-extraction.service.ts` (constante `MODELOS`); para trocar, edite ali e gere a imagem de novo. Fichas com mais de 12 páginas são lidas em partes de 12 e juntadas numa ficha só; na Groq (`qwen/qwen3.8-27b`, máximo de 3 imagens por pedido) as partes são de 3 páginas. Ao iniciar, o backend avisa no log quais IAs ficaram desativadas por falta de chave (`GROQ_API_KEY não definida — Groq desativado.`).
 
 ### Como configurar o e-mail (SMTP)
 
@@ -336,7 +336,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        client_max_body_size 1600m;   # até 30 arquivos de 50 MB
+        client_max_body_size 3300m;   # até 30 arquivos de 110 MB
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
     }
