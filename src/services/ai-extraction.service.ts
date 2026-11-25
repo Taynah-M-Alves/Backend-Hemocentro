@@ -21,9 +21,16 @@ const TIMEOUT_MS = 900_000;
  */
 const MAX_TOKENS = 32_000; // máximo do gpt-4.1
 const TEMPERATURA = 0.1;
-/** Fichas maiores que isso são lidas em partes e juntadas no fim. A Groq só aceita 3 imagens. */
-const PAGINAS_POR_PARTE = 12;
-const PAGINAS_POR_PARTE_GROQ = 3;
+/**
+ * Fichas com mais de PAGINAS_INTEIRA páginas são lidas em partes de PAGINAS_POR_PARTE e juntadas.
+ * Uma folha de transfusões cheia rende uns 2.500 tokens de JSON, então mesmo uma ficha menor
+ * pode vir cortada: aí é lida de novo em partes.
+ */
+const PAGINAS_INTEIRA = 12;
+const PAGINAS_POR_PARTE = 4;
+/** Plano gratuito da Groq: 7.000 tokens de entrada por minuto, e cada imagem conta 2.048. */
+const PAGINAS_POR_PARTE_GROQ = 2;
+const GROQ_INTERVALO_MS = 60_000;
 
 /** Modelos de cada IA (o .env só tem as chaves). Todos precisam ler imagens. */
 const MODELOS = {
@@ -54,6 +61,8 @@ interface Provedor {
 @Injectable()
 export class AiExtractionService {
   private readonly logger = new Logger(AiExtractionService.name);
+  /** Quando a Groq pode receber o próximo pedido sem estourar o limite por minuto. */
+  private groqLivreEm = 0;
 
   /** Ordem de tentativa: Gemini → Groq → OpenRouter → OpenAI. */
   private readonly provedores: Provedor[];
@@ -147,10 +156,22 @@ export class AiExtractionService {
       const inicio = Date.now();
       try {
         this.logger.log(`Enviando ${paginas.length} página(s) ao ${nome}…`);
-        const dados = await this.lerEmPartes(
-          extrair,
-          paginas,
-          id === 'groq' ? PAGINAS_POR_PARTE_GROQ : PAGINAS_POR_PARTE,
+        const tamanho =
+          id === 'groq'
+            ? PAGINAS_POR_PARTE_GROQ
+            : paginas.length > PAGINAS_INTEIRA
+              ? PAGINAS_POR_PARTE
+              : PAGINAS_INTEIRA;
+        const dados = await this.lerEmPartes(extrair, paginas, tamanho).catch(
+          (err) => {
+            // JSON inválido = resposta cortada no meio: tenta de novo com menos páginas por pedido
+            if (tamanho <= PAGINAS_POR_PARTE || !/JSON/.test(mensagemDeErro(err)))
+              throw err;
+            this.logger.warn(
+              `${nome}: resposta cortada — lendo de novo de ${PAGINAS_POR_PARTE} em ${PAGINAS_POR_PARTE} páginas…`,
+            );
+            return this.lerEmPartes(extrair, paginas, PAGINAS_POR_PARTE);
+          },
         );
         tentativas.push({
           provedor: id,
@@ -262,12 +283,14 @@ export class AiExtractionService {
     throw new Error('Nenhum modelo do Gemini.');
   }
 
-  /** O qwen3.8 aceita no máximo 3 imagens por pedido (por isso lerEmPartes manda de 3 em 3). */
+  /** Um pedido por minuto, de 2 em 2 páginas (limite do plano gratuito; o qwen3.8 aceita até 3 imagens). */
   private async chamarGroq(
     cliente: Groq,
     modelo: string,
     paginas: PaginaImagem[],
   ) {
+    await new Promise((ok) => setTimeout(ok, this.groqLivreEm - Date.now()));
+    this.groqLivreEm = Date.now() + GROQ_INTERVALO_MS;
     const completion = await cliente.chat.completions.create({
       model: modelo,
       // Mesmo formato da OpenAI; só o nome do tipo no SDK do Groq é diferente
