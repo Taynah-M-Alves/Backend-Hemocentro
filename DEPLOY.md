@@ -14,13 +14,9 @@ O backend lê o arquivo `.env` da pasta onde é iniciado (sem o arquivo, usa as 
 | `PORT`               | Não                               | `3000`                                               | Porta HTTP do backend                                                                                                                                                       |
 | `NODE_ENV`           | Recomendado                       | — (o `.env.example` traz `production`)               | Use `production` no servidor. Assim, se faltar `SMTP_HOST`, o envio de e-mail dá erro em vez de imprimir o link no log                                                      |
 | `GEMINI_API_KEY`     | Pelo menos uma das 4 chaves de IA | —                                                    | Chave do Google Gemini (1ª tentativa)                                                                                                                                       |
-| `GEMINI_MODEL`       | Não                               | `gemini-3.8-flash,gemini-3.7-flash,gemini-2.5-flash` | Modelo(s) do Gemini, separados por vírgula: o seguinte só é tentado quando o anterior está sobrecarregado (503)                                                             |
 | `GROQ_API_KEY`       | Opcional                          | —                                                    | Chave da Groq (2ª tentativa)                                                                                                                                                |
-| `GROQ_MODEL`         | Não                               | `meta-llama/llama-4-scout-17b-16e-instruct`          | Precisa ser um modelo com visão (até 5 páginas por ficha)                                                                                                                   |
 | `OPENROUTER_API_KEY` | Opcional                          | —                                                    | Chave da OpenRouter, começa com `sk-or-v1-` (3ª tentativa)                                                                                                                  |
-| `OPENROUTER_MODEL`   | Não                               | `google/gemini-3.7-flash`                            | Formato `empresa/modelo`. O `.env.example` sugere `google/gemini-3.8-flash`                                                                                                 |
 | `OPENAI_API_KEY`     | Opcional                          | —                                                    | Chave da OpenAI, começa com `sk-` (4ª tentativa)                                                                                                                            |
-| `OPENAI_MODEL`       | Não                               | `gpt-4.1`                                            | Modelo da OpenAI (precisa ler imagens)                                                                                                                                      |
 | `CORS_ORIGINS`       | Sim em produção                   | `http://localhost:8080,http://localhost:8081`        | Endereço(s) do frontend, separados por vírgula, sem barra no fim. Vale para CORS, para a conferência do `Origin` no login e nas ações, e para o `<iframe>` que mostra o PDF |
 | `FRONTEND_URL`       | Sim em produção                   | `http://localhost:8080`                              | Endereço do frontend usado no link do e-mail: `FRONTEND_URL/redefinir-senha?token=...`                                                                                      |
 | `FUSO_HORARIO`       | Não                               | `America/Cuiaba`                                     | Fuso (nome IANA) das datas nas respostas, mensagens, e-mails e planilhas                                                                                                    |
@@ -51,7 +47,7 @@ As variáveis do Vue entram no código na hora do build (`npm run build`): mudou
 - **Atenção às chaves que começam com `AQ.`** (formato novo do AI Studio, inclusive em projetos pagos): em novembro de 2026 há vários relatos no fórum do Gemini de chaves `AQ.` recusadas pelo Google com `401 Unauthorized ... ACCESS_TOKEN_TYPE_UNSUPPORTED`, mesmo chamando a API direto com `curl`, sem correção oficial. Não é erro do backend. Antes de colocar a chave no `.env`, teste-a (veja "Testar a chave do Gemini" abaixo). Se for recusada:
   1. Tente criar a chave pelo Google Cloud Console, no mesmo projeto: **APIs e serviços → Biblioteca → Generative Language API** (ativar) e **APIs e serviços → Credenciais → Criar credenciais → Chave de API**. Se ela vier no formato `AIza...`, restrinja-a à Generative Language API (**Editar chave → Restrições de API**) e use essa.
   2. Enquanto isso, configure uma IA de reserva (OpenRouter, Groq ou OpenAI): o backend tenta a próxima quando o Gemini falha.
-  3. Gerar outra chave `AQ.` no AI Studio ou trocar o `GEMINI_MODEL` não resolve: o erro é de autenticação.
+  3. Gerar outra chave `AQ.` no AI Studio ou trocar o modelo não resolve: o erro é de autenticação.
 
 **Testar a chave do Gemini** (no servidor, na pasta do backend; lê a chave do `.env` sem mostrá-la na tela):
 
@@ -79,7 +75,7 @@ Se aparecer `"models": [`, a chave funciona. Se aparecer `"error"`, a chave foi 
 - Entre em `https://platform.openai.com/api-keys` e clique em **Create new secret key**. Copie a chave (começa com `sk-`).
 - Adicione créditos em **Settings → Billing**; sem saldo, toda chamada falha.
 
-Basta uma chave para o sistema funcionar; as outras são reserva quando a primeira falha. Ao iniciar, o backend avisa no log quais IAs ficaram desativadas por falta de chave (`GROQ_API_KEY não definida — Groq desativado.`).
+Basta uma chave para o sistema funcionar; as outras são reserva quando a primeira falha. Os modelos de cada IA ficam fixos em `src/services/ai-extraction.service.ts` (constante `MODELOS`); para trocar, edite ali e gere a imagem de novo. A Groq (`qwen/qwen3.8-27b`) só lê fichas de até 3 páginas; as maiores passam direto para a próxima IA. Ao iniciar, o backend avisa no log quais IAs ficaram desativadas por falta de chave (`GROQ_API_KEY não definida — Groq desativado.`).
 
 ### Como configurar o e-mail (SMTP)
 

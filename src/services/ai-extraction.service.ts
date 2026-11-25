@@ -25,12 +25,20 @@ const TIMEOUT_MS = 900_000;
 const MAX_TOKENS = 20000;
 const TEMPERATURA = 0.1;
 
-/** Modelo usado quando o *_MODEL correspondente não está no .env. Todos precisam ler imagens. */
-const MODELO_PADRAO: Record<ProvedorIa, string> = {
-  // Gemini aceita uma lista: o seguinte só é usado quando o anterior está sobrecarregado (503)
-  gemini: 'gemini-3.8-flash,gemini-3.7-flash,gemini-2.5-flash',
-  groq: 'meta-llama/llama-4-scout-17b-16e-instruct',
-  openrouter: 'google/gemini-3.7-flash',
+/** Modelos de cada IA (o .env só tem as chaves). Todos precisam ler imagens. */
+const MODELOS = {
+  // O seguinte só é usado quando o anterior está sobrecarregado (503)
+  gemini: [
+    'gemini-3.8-flash',
+    'gemini-3.6-flash',
+    'gemini-3-flash-preview',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+  ],
+  // Único modelo da Groq que lê imagens (o llama-4-scout foi desligado em 17/07/2026)
+  groq: 'qwen/qwen3.8-27b',
+  openrouter: 'google/gemini-3.8-flash',
   openai: 'gpt-4.1',
 };
 
@@ -80,23 +88,17 @@ export class AiExtractionService {
         })
       : null;
 
-    const modelo = (id: ProvedorIa) =>
-      env[`${id.toUpperCase()}_MODEL`] || MODELO_PADRAO[id];
-    const modelosGemini = modelo('gemini')
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean);
-
     this.provedores = [
       {
         id: 'gemini',
         nome: 'Gemini',
-        extrair: gemini && ((p) => this.chamarGemini(gemini, modelosGemini, p)),
+        extrair:
+          gemini && ((p) => this.chamarGemini(gemini, MODELOS.gemini, p)),
       },
       {
         id: 'groq',
         nome: 'Groq',
-        extrair: groq && ((p) => this.chamarGroq(groq, modelo('groq'), p)),
+        extrair: groq && ((p) => this.chamarGroq(groq, MODELOS.groq, p)),
       },
       {
         id: 'openrouter',
@@ -104,14 +106,14 @@ export class AiExtractionService {
         extrair:
           openRouter &&
           ((p) =>
-            this.chamarOpenAiCompativel(openRouter, modelo('openrouter'), p)),
+            this.chamarOpenAiCompativel(openRouter, MODELOS.openrouter, p)),
       },
       {
         id: 'openai',
         nome: 'OpenAI',
         extrair:
           openAi &&
-          ((p) => this.chamarOpenAiCompativel(openAi, modelo('openai'), p)),
+          ((p) => this.chamarOpenAiCompativel(openAi, MODELOS.openai, p)),
       },
     ];
 
@@ -212,10 +214,10 @@ export class AiExtractionService {
         );
       }
     }
-    throw new Error('GEMINI_MODEL sem nenhum modelo.');
+    throw new Error('Nenhum modelo do Gemini.');
   }
 
-  /** Groq aceita no máximo 5 imagens por pedido; fichas maiores caem para a próxima IA. */
+  /** O qwen3.8 aceita no máximo 3 imagens por pedido; fichas maiores caem para a próxima IA. */
   private async chamarGroq(
     cliente: Groq,
     modelo: string,
@@ -233,7 +235,8 @@ export class AiExtractionService {
         },
       ],
       temperature: TEMPERATURA,
-      max_completion_tokens: MAX_TOKENS,
+      max_completion_tokens: 16384, // máximo do qwen3.8 na Groq
+      reasoning_format: 'hidden', // só o JSON, sem o raciocínio
       response_format: { type: 'json_object' },
     });
     return this.parseJson(completion.choices[0]?.message?.content ?? '');
