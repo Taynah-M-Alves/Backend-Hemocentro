@@ -3,6 +3,7 @@ import type {
   ClasseAnticorpo,
   GrupoAbo,
   Raca,
+  ResultadoProvaCruzada,
   ResultadoTeste,
   Rh,
   Sexo,
@@ -45,7 +46,7 @@ export interface TransfusaoExtraida {
   volMl: number | null;
   /** NAO_REALIZADO = "NR" escrito na ficha; null = vazio ou ilegível */
   testesPai: ResultadoTeste | null;
-  provaCruzada: ResultadoTeste | null;
+  provaCruzada: ResultadoProvaCruzada | null;
   cidadeDestino: string | null;
   ufDestino: string | null;
   responsavelLiberacao: string | null;

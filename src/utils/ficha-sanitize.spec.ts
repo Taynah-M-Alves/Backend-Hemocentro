@@ -152,6 +152,17 @@ describe('sanitizarFicha', () => {
     expect(camposFaltandoNaTransfusao(ficha.transfusoes[0])).toContain('prova cruzada');
   });
 
+  it('lê a prova cruzada sem aceitar positivo/negativo', () => {
+    const ficha = sanitizarFicha({
+      transfusoes: ['Compatível', 'incompativel', 'Inconclusivo', 'NR', 'Negativo', 'POSITIVO'].map(
+        (provaCruzada) => ({ provaCruzada }),
+      ),
+    });
+    expect(ficha.transfusoes.map((t) => t.provaCruzada)).toEqual([
+      'COMPATIVEL', 'INCOMPATIVEL', 'INCONCLUSIVO', 'NAO_REALIZADO', null, null,
+    ]);
+  });
+
   it('recusa resposta que não é objeto', () => {
     expect(() => sanitizarFicha('texto')).toThrow(/objeto/);
   });

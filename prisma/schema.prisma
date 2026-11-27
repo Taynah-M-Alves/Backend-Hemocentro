@@ -15,8 +15,21 @@ generator client {
 
 enum ResultadoTeste {
   NAO_REALIZADO // Não realizado
-  POSITIVO
+  POSITIVO // sem grau: só leituras antigas
+  POSITIVO_W // Positivo Weak (W)
+  POSITIVO_1 // 1+
+  POSITIVO_2 // 2+
+  POSITIVO_3 // 3+
+  POSITIVO_4 // 4+
   NEGATIVO
+}
+
+/// Prova cruzada da transfusão: nunca é positivo/negativo
+enum ResultadoProvaCruzada {
+  NAO_REALIZADO
+  COMPATIVEL
+  INCOMPATIVEL
+  INCONCLUSIVO
 }
 
 // Classe do anticorpo identificado na pesquisa
@@ -107,7 +120,7 @@ model Paciente {
   sexo           Sexo?
   raca           Raca?    @map("raca_cor")
   aboRh          Abo?     @map("abo_rh")
-  dataNascimento DateTime @map("data_nascimento") @db.Date
+  dataNascimento DateTime? @map("data_nascimento") @db.Date // pode faltar na ficha
   prontuario     Int?     @unique
   cpf            String?  @unique @db.VarChar(11)
   cartaoSus      String?  @unique @map("cartao_sus") @db.VarChar(15)
@@ -157,8 +170,9 @@ model estados {
 /// Profissionais do hemocentro citados no papel (quem liberou a transfusão, solicitante da pesquisa).
 /// Nem toda colaboradora usa o sistema; quem usa tem um Usuario ligado a ela.
 model Colaborador {
-  id   Int    @id @default(autoincrement())
-  nome String @db.VarChar(255)
+  id    Int     @id @default(autoincrement())
+  nome  String  @db.VarChar(255)
+  ativo Boolean @default(true) // inativo some do select, mas continua nas fichas antigas
 
   usuario Usuario?
 
@@ -166,6 +180,17 @@ model Colaborador {
   pesquisasRealizadas PesquisaAnticorpos[] @relation("ResponsavelPesquisa")
 
   @@map("colaborador")
+}
+
+/// Hospital ou pronto-socorro de destino da transfusão (todos em Cuiabá/MT), no lugar da cidade.
+model Instituicao {
+  id    Int     @id @default(autoincrement())
+  nome  String  @db.VarChar(255)
+  ativo Boolean @default(true)
+
+  fichasTransfusionais FichaTransfusional[]
+
+  @@map("instituicao")
 }
 
 // ─── Registros clínicos (só entram aqui depois da validação humana) ──────────
@@ -181,13 +206,17 @@ model FichaTransfusional {
   grsRhd             Abo            @map("grs_rhd")
   volMl              Int            @map("vol_ml")
   testesPai          ResultadoTeste @map("testes_pai")
-  provaCruzada       ResultadoTeste @map("prova_cruzada")
+  provaCruzada       ResultadoProvaCruzada @map("prova_cruzada")
 
   pacienteId String   @map("paciente_id") @db.Uuid
   paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
 
   cidadeDestinoId Int?    @map("cidade_destino_id")
   cidadeDestino   Cidade? @relation(fields: [cidadeDestinoId], references: [id])
+
+  // Destino escrito como instituição ("Enviado p/ HUJM"); nas transfusões antigas fica vazio
+  instituicaoDestinoId Int?         @map("instituicao_destino_id")
+  instituicaoDestino   Instituicao? @relation(fields: [instituicaoDestinoId], references: [id])
 
   responsavelLiberacaoId Int?         @map("responsavel_liberacao_id")
   responsavelLiberacao   Colaborador? @relation("ResponsavelLiberacao", fields: [responsavelLiberacaoId], references: [id])

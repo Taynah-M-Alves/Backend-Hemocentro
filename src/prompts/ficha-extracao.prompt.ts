@@ -30,8 +30,9 @@ Valores aceitos:
 - paciente.sexo: "F" ou "M"
 - paciente.aboRh e transfusoes[].grsRhd: grupo e Rh, ex.: "O+", "A-"
 - gs: só o grupo, ex.: "O", "AB". rh: "Positivo", "Negativo" ou "Não determinado"
-- testesPai, provaCruzada e pesquisas[].pai/tad/autocontrole/dcScreening: um de [NR, POSITIVO, NEGATIVO]; "NR" = não realizado (só quando "NR"
+- testesPai e pesquisas[].pai/tad/autocontrole/dcScreening: um de [NR, POSITIVO, NEGATIVO]; "NR" = não realizado (só quando "NR"
   estiver escrito na ficha; célula vazia ou ilegível = null)
+- provaCruzada: um de [NR, COMPATIVEL, INCOMPATIVEL, INCONCLUSIVO]; nunca positivo/negativo (vazio ou ilegível = null)
 - pesquisas[].anticorpos: um item por anticorpo identificado, ex.: "Anti-E". data e classe ("IgG" ou "IgM")
   só se estiverem escritas ao lado do anticorpo
 - kits[].tipo: "DIACELL" ou "DIAPANEL"

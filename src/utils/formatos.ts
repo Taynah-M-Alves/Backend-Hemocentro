@@ -44,8 +44,9 @@ export function isoLocal(data: Date): string {
   return new Date(data.getTime() + deslocamentoMs).toISOString().slice(0, -1) + gmt;
 }
 
-/** Idade em anos completos hoje. */
-export function idade(nascimento: Date): number {
+/** Idade em anos completos hoje; null sem data de nascimento. */
+export function idade(nascimento: Date | null): number | null {
+  if (!nascimento) return null;
   const hoje = new Date();
   const anos = hoje.getUTCFullYear() - nascimento.getUTCFullYear();
   const fezAniversario =

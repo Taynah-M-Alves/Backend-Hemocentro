@@ -3,6 +3,7 @@ import {
   ClasseAnticorpo,
   GrupoAbo,
   Raca,
+  ResultadoProvaCruzada,
   ResultadoTeste,
   Rh,
   Sexo,
@@ -124,7 +125,7 @@ function sanitizarTransfusao(t: Obj): TransfusaoExtraida {
     grsRhd: abo(t.grsRhd),
     volMl: inteiro(t.volMl),
     testesPai: resultadoTeste(t.testesPai),
-    provaCruzada: resultadoTeste(t.provaCruzada),
+    provaCruzada: provaCruzada(t.provaCruzada),
     cidadeDestino: texto(t.cidadeDestino, 120),
     ufDestino: uf(t.ufDestino),
     responsavelLiberacao: texto(t.responsavelLiberacao),
@@ -284,6 +285,15 @@ function resultadoTeste(v: unknown): ResultadoTeste | null {
   if (valor.startsWith('NEG')) return ResultadoTeste.NEGATIVO;
   if (valor === 'NR' || /^NAO.?REALIZ/.test(valor)) return ResultadoTeste.NAO_REALIZADO;
   return null;
+}
+
+/** Compatível, Incompatível, Inconclusivo ou NR. Positivo/negativo não existe na prova cruzada: fica null. */
+function provaCruzada(v: unknown): ResultadoProvaCruzada | null {
+  const valor = normalizado(v);
+  if (valor.startsWith('INCOMP')) return ResultadoProvaCruzada.INCOMPATIVEL;
+  if (valor.startsWith('COMP')) return ResultadoProvaCruzada.COMPATIVEL;
+  if (valor.startsWith('INCONC')) return ResultadoProvaCruzada.INCONCLUSIVO;
+  return resultadoTeste(v) === ResultadoTeste.NAO_REALIZADO ? ResultadoProvaCruzada.NAO_REALIZADO : null;
 }
 
 function classeAnticorpo(v: unknown): ClasseAnticorpo | null {
