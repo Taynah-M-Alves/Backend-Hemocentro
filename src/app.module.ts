@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuditoriaController } from './controllers/auditoria.controller.js';
 import { CidadesController } from './controllers/cidades.controller.js';
+import { InstituicoesController } from './controllers/instituicoes.controller.js';
 import { ColaboradoresController } from './controllers/colaboradores.controller.js';
 import { DashboardController } from './controllers/dashboard.controller.js';
 import { DocumentosController } from './controllers/documentos.controller.js';
@@ -11,6 +12,7 @@ import { UsuariosController } from './controllers/usuarios.controller.js';
 import { AiExtractionService } from './services/ai-extraction.service.js';
 import { AuditoriaService } from './services/auditoria.service.js';
 import { CidadeService } from './services/cidade.service.js';
+import { InstituicaoService } from './services/instituicao.service.js';
 import { ColaboradorService } from './services/colaborador.service.js';
 import { DashboardService } from './services/dashboard.service.js';
 import { DocumentoImagemService } from './services/documento-imagem.service.js';
@@ -42,6 +44,7 @@ import { SomenteGestorGuard } from './guards/somente-gestor.guard.js';
     UsuariosController,
     ColaboradoresController,
     CidadesController,
+    InstituicoesController,
     AutenticacaoController,
   ],
   providers: [
@@ -59,6 +62,7 @@ import { SomenteGestorGuard } from './guards/somente-gestor.guard.js';
     UsuarioService,
     ColaboradorService,
     CidadeService,
+    InstituicaoService,
     AutenticacaoService,
     SenhaService,
     SessaoService,
