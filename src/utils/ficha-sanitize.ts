@@ -67,6 +67,7 @@ export function camposFaltandoNaTransfusao(t: TransfusaoExtraida): string[] {
     ['volume', t.volMl],
     ['PAI', t.testesPai],
     ['prova cruzada', t.provaCruzada],
+    ['cidade de destino', t.cidadeDestino],
   ];
   return obrigatorios
     .filter(([, valor]) => valor === null)
@@ -116,6 +117,8 @@ function sanitizarPaciente(p: Obj): PacienteExtraido {
 }
 
 function sanitizarTransfusao(t: Obj): TransfusaoExtraida {
+  // Só a instituição escrita: todas as cadastradas ficam em Cuiabá/MT
+  const soInstituicao = !texto(t.cidadeDestino) && !!texto(t.instituicaoDestino);
   return {
     dataEnvio: dataIso(t.dataEnvio),
     tipoHemocomponente: texto(t.tipoHemocomponente, 100),
@@ -126,8 +129,9 @@ function sanitizarTransfusao(t: Obj): TransfusaoExtraida {
     volMl: inteiro(t.volMl),
     testesPai: resultadoTeste(t.testesPai),
     provaCruzada: provaCruzada(t.provaCruzada),
-    cidadeDestino: texto(t.cidadeDestino, 120),
-    ufDestino: uf(t.ufDestino),
+    cidadeDestino: soInstituicao ? 'Cuiabá' : texto(t.cidadeDestino, 120),
+    ufDestino: soInstituicao ? 'MT' : uf(t.ufDestino),
+    instituicaoDestino: texto(t.instituicaoDestino),
     responsavelLiberacao: texto(t.responsavelLiberacao),
     pagina: inteiro(t.pagina),
   };

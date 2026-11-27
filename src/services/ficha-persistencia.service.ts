@@ -28,7 +28,7 @@ type PacienteIdentificado = PacienteExtraido & {
 /** Cidade ou colaborador citado na ficha; `rotulo` diz o campo em texto para quem revisa. */
 type Referencia =
   | { tipo: 'cidade'; rotulo: string; nome: string; uf: string | null }
-  | { tipo: 'colaborador'; rotulo: string; nome: string };
+  | { tipo: 'colaborador' | 'instituicao'; rotulo: string; nome: string };
 
 /**
  * Grava nas tabelas clínicas o que foi revisado numa ficha (POST /api/fichas/:id/aprovar).
@@ -51,8 +51,9 @@ export class FichaPersistenciaService {
     const erros: string[] = [];
     for (const r of referencias(ficha)) {
       if (jaEstavam.has(chave(r))) continue;
-      if (r.tipo === 'colaborador') {
-        if (!(await this.idColaborador(db, r.nome))) {
+      if (r.tipo !== 'cidade') {
+        const id = r.tipo === 'colaborador' ? this.idColaborador(db, r.nome) : this.idInstituicao(db, r.nome);
+        if (!(await id)) {
           erros.push(`${r.rotulo}: "${r.nome}" não tem cadastro. Cadastre ou corrija o nome.`);
         }
       } else if (!r.uf) {
@@ -188,6 +189,7 @@ export class FichaPersistenciaService {
         pagina: t.pagina,
         cidadeDestinoId: await this.idCidade(tx, t.cidadeDestino, t.ufDestino),
         responsavelLiberacaoId: await this.idColaborador(tx, t.responsavelLiberacao),
+        instituicaoDestinoId: await this.idInstituicao(tx, t.instituicaoDestino),
       },
     });
     return true;
@@ -291,6 +293,14 @@ export class FichaPersistenciaService {
     return cidade?.id ?? null;
   }
 
+  /** Inclui as inativas: uma ficha antiga pode citar instituição que não está mais no select. */
+  private async idInstituicao(db: Tx, nome: string | null): Promise<number | null> {
+    if (!nome) return null;
+    const [instituicao] = await db.$queryRaw<{ id: number }[]>`
+      SELECT id FROM instituicao WHERE unaccent(lower(nome)) = unaccent(lower(${nome})) LIMIT 1`;
+    return instituicao?.id ?? null;
+  }
+
   private async idColaborador(db: Tx, nome: string | null): Promise<number | null> {
     if (!nome) return null;
     const [colaborador] = await db.$queryRaw<{ id: number }[]>`
@@ -303,12 +313,13 @@ export class FichaPersistenciaService {
 function referencias(f: FichaExtraida): Referencia[] {
   const cidade = (rotulo: string, nome: string | null, uf: string | null): Referencia[] =>
     nome ? [{ tipo: 'cidade', rotulo, nome, uf }] : [];
-  const colaborador = (rotulo: string, nome: string | null): Referencia[] =>
-    nome ? [{ tipo: 'colaborador', rotulo, nome }] : [];
+  const colaborador = (rotulo: string, nome: string | null, tipo: 'colaborador' | 'instituicao' = 'colaborador'): Referencia[] =>
+    nome ? [{ tipo, rotulo, nome }] : [];
   return [
     ...cidade('Município do paciente', f.paciente.municipio, f.paciente.ufMunicipio),
     ...f.transfusoes.flatMap((t, i) => [
       ...cidade(`Cidade de destino da ${i + 1}ª transfusão`, t.cidadeDestino, t.ufDestino),
+      ...colaborador(`Instituição de destino da ${i + 1}ª transfusão`, t.instituicaoDestino, 'instituicao'),
       ...colaborador(`Responsável pela liberação da ${i + 1}ª transfusão`, t.responsavelLiberacao),
     ]),
     ...f.pesquisas.flatMap((p, i) => colaborador(`Responsável pela ${i + 1}ª pesquisa`, p.responsavel)),

@@ -374,7 +374,12 @@ export class FichaService {
     } catch (err) {
       throw new UnprocessableEntityException(`${mensagemDeErro(err)} Corrija antes de aprovar.`);
     }
-    const invalidas = await this.persistencia.referenciasInvalidas(this.prisma, dados);
+    const invalidas = [
+      ...dados.transfusoes.flatMap((t, i) =>
+        t.cidadeDestino ? [] : [`Informe a cidade de destino da ${i + 1}ª transfusão.`],
+      ),
+      ...(await this.persistencia.referenciasInvalidas(this.prisma, dados)),
+    ];
     if (invalidas.length) {
       throw new UnprocessableEntityException(`${invalidas.join(' ')} Corrija antes de aprovar.`);
     }

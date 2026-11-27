@@ -49,6 +49,7 @@ export interface TransfusaoExtraida {
   provaCruzada: ResultadoProvaCruzada | null;
   cidadeDestino: string | null;
   ufDestino: string | null;
+  instituicaoDestino: string | null;
   responsavelLiberacao: string | null;
   pagina: number | null;
 }

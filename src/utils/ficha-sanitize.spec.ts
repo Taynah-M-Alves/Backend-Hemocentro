@@ -163,6 +163,14 @@ describe('sanitizarFicha', () => {
     ]);
   });
 
+  it('destino só com instituição vira Cuiabá/MT; sem leitura fica null', () => {
+    const ficha = sanitizarFicha({
+      transfusoes: [{ instituicaoDestino: 'PS Cuiabá' }, { cidadeDestino: '???', instituicaoDestino: null }],
+    });
+    expect(ficha.transfusoes[0]).toMatchObject({ cidadeDestino: 'Cuiabá', ufDestino: 'MT', instituicaoDestino: 'PS Cuiabá' });
+    expect(ficha.transfusoes[1]).toMatchObject({ instituicaoDestino: null });
+  });
+
   it('recusa resposta que não é objeto', () => {
     expect(() => sanitizarFicha('texto')).toThrow(/objeto/);
   });

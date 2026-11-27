@@ -150,6 +150,7 @@ export class PacienteService {
           include: {
             ...origem,
             cidadeDestino: COM_UF,
+            instituicaoDestino: { select: { nome: true } },
             responsavelLiberacao: { select: { nome: true } },
           },
         },
@@ -232,6 +233,7 @@ export class PacienteService {
         testesPai: t.testesPai,
         provaCruzada: t.provaCruzada,
         destino: nomeMunicipio(t.cidadeDestino),
+        instituicaoDestino: t.instituicaoDestino?.nome ?? null,
         responsavelLiberacao: t.responsavelLiberacao?.nome ?? null,
         origem: deOnde(t),
       })),
