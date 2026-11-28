@@ -9,216 +9,318 @@
       "name": "1. Apoio (usuários, colaboradoras, cidades, instituições)",
       "item": [
         {
-          "name": "Criar usuário",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+          "name": "Usuario",
+          "item": [
+            {
+              "name": "Criar usuário",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/usuarios",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "usuarios"
+                  ]
+                },
+                "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com o perfil escolhido no campo \"perfil\": GESTOR (acesso a tudo) ou COLABORADOR (acesso a tudo, menos as rotas de /api/usuarios); se omitido, vale COLABORADOR. Também recebe uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres, com minúscula, maiúscula, número e caractere especial). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política, o perfil for inválido ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"perfil\": \"COLABORADOR\",\n  \"colaboradorId\": null\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
-              {
-                "key": "X-CSRF-Token",
-                "value": "{{csrfToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/usuarios",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "usuarios"
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const j = pm.response.json();",
+                      "if (j.id) pm.collectionVariables.set('usuarioId', j.id);"
+                    ]
+                  }
+                }
               ]
             },
-            "description": "Só gestor logado (faça antes o \"Entrar (login)\" da pasta 6 com um gestor). Cria o funcionário com o perfil escolhido no campo \"perfil\": GESTOR (acesso a tudo) ou COLABORADOR (acesso a tudo, menos as rotas de /api/usuarios); se omitido, vale COLABORADOR. Também recebe uma senha provisória (mesma política da troca de senha: 8 a 64 caracteres, com minúscula, maiúscula, número e caractere especial). O usuário nasce com trocarSenhaNoProximoLogin: true: ao entrar, todas as rotas dão 403 { message, trocarSenhaNoProximoLogin: true } até ele usar \"Trocar senha\" (pasta 6). 201; 400 se faltar a senha, ela não seguir a política, o perfil for inválido ou o colaboradorId não existir; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 409 se o e-mail já existir.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"email\": \"camila@hemocentro.local\",\n  \"senha\": \"Provisoria#1\",\n  \"perfil\": \"COLABORADOR\",\n  \"colaboradorId\": null\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+            {
+              "name": "Listar usuários",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/usuarios?ativo=true&busca=camila",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "usuarios"
+                  ],
+                  "query": [
+                    {
+                      "key": "ativo",
+                      "value": "true",
+                      "description": "true (padrão) ou false",
+                      "disabled": false
+                    },
+                    {
+                      "key": "busca",
+                      "value": "camila",
+                      "description": "trecho do nome ou do e-mail (opcional)"
+                    }
+                  ]
+                },
+                "description": "Filtros \"Responsável\" (Fila) e \"Usuário\" (Auditoria). busca (opcional): trecho do nome ou do e-mail, sem diferenciar maiúsculas (\"camila\" acha \"Camila Rocha\")."
+              }
+            },
+            {
+              "name": "Alterar usuário",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/usuarios/{{usuarioId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{usuarioId}}"
+                  ]
+                },
+                "description": "Gestor ou colaborador logado. Altera nome, colaboradorId (null desliga) e/ou trocarSenhaNoProximoLogin (true obriga o usuário a trocar a senha: a partir da próxima requisição dele, tudo dá 403 até usar \"Trocar senha\"). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir ou se trocarSenhaNoProximoLogin não for true/false. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"colaboradorId\": null,\n  \"trocarSenhaNoProximoLogin\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               }
-            }
-          },
-          "event": [
+            },
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const j = pm.response.json();",
-                  "if (j.id) pm.collectionVariables.set('usuarioId', j.id);"
-                ]
+              "name": "Desativar usuário",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/usuarios/{{usuarioAlvoId}}/inativar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{usuarioAlvoId}}",
+                    "inativar"
+                  ]
+                },
+                "description": "Só gestor logado: faça antes o \"Entrar (login)\" da pasta 6 com um gestor (o cookie hemocentro_sessao fica no Postman e o csrfToken vai para a variável). Desativa o usuário {{usuarioAlvoId}}: o login dele passa a dar 401, as sessões abertas são encerradas e os links de troca de senha pendentes deixam de valer; esqueci-senha não manda mais e-mail. 200 com o usuário (ativo: false); 400 se for você mesmo; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 404 se o usuário não existir; 409 se o sistema ficaria sem nenhum gestor ativo."
+              }
+            },
+            {
+              "name": "Reativar usuário",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/usuarios/{{usuarioAlvoId}}/reativar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{usuarioAlvoId}}",
+                    "reativar"
+                  ]
+                },
+                "description": "Só gestor logado (mesmo esquema do Desativar). Volta ativo: true; o usuário entra de novo com a senha que já tinha (as sessões antigas continuam encerradas). 200 com o usuário; 401, 403 e 404 como no Desativar."
               }
             }
           ]
         },
         {
-          "name": "Listar usuários",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/usuarios?ativo=true",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "usuarios"
-              ],
-              "query": [
-                {
-                  "key": "ativo",
-                  "value": "true",
-                  "description": "true (padrão) ou false",
-                  "disabled": false
-                }
-              ]
-            },
-            "description": "Filtros \"Responsável\" (Fila) e \"Usuário\" (Auditoria)."
-          }
-        },
-        {
-          "name": "Alterar usuário",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-CSRF-Token",
-                "value": "{{csrfToken}}"
+          "name": "Colaborador(a)",
+          "item": [
+            {
+              "name": "Buscar colaboradoras",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/colaboradores?busca=mar&ativo=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "colaboradores"
+                  ],
+                  "query": [
+                    {
+                      "key": "busca",
+                      "value": "mar"
+                    },
+                    {
+                      "key": "ativo",
+                      "value": "true",
+                      "description": "true = só ativas, false = só inativas; sem o parâmetro, todas"
+                    }
+                  ]
+                },
+                "description": "Profissionais citadas no papel. Mínimo 2 letras. Traz ativas e inativas; filtro ?ativo=true (só ativas, use no select) ou ?ativo=false (só inativas). Cada item tem id, nome, ativo e usuarioId."
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/usuarios/{{usuarioId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "usuarios",
-                "{{usuarioId}}"
-              ]
             },
-            "description": "Gestor ou colaborador logado. Altera nome, colaboradorId (null desliga) e/ou trocarSenhaNoProximoLogin (true obriga o usuário a trocar a senha: a partir da próxima requisição dele, tudo dá 403 até usar \"Trocar senha\"). 409 se a colaboradora já estiver ligada a outro usuário. 400 se o colaboradorId não existir ou se trocarSenhaNoProximoLogin não for true/false. Mandar \"ativo\" dá 400: use Desativar/Reativar usuário.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"nome\": \"Camila Rocha\",\n  \"colaboradorId\": null,\n  \"trocarSenhaNoProximoLogin\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+            {
+              "name": "Criar colaboradora",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/colaboradores",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "colaboradores"
+                  ]
+                },
+                "description": "201 com a colaboradora criada. O nome é gravado normalizado (\"maria DA silva\" → \"Maria da Silva\"); 409 se já existir o mesmo nome.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"Marcia\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
+              }
+            },
+            {
+              "name": "Alterar colaboradora",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/colaboradores/{{colaboradorId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "colaboradores",
+                    "{{colaboradorId}}"
+                  ]
+                },
+                "description": "Corrige o nome. Mesma normalização do criar. 200 com a colaboradora; 404 se não existir; 409 se outra colaboradora já tiver esse nome (sem diferenciar maiúsculas nem acentos).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"Leticia B. S. Heinen Braun\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Inativar colaboradora",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/colaboradores/{{colaboradorId}}/inativar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "colaboradores",
+                    "{{colaboradorId}}",
+                    "inativar"
+                  ]
+                },
+                "description": "Some do GET /colaboradores (select), mas continua nas fichas já gravadas e ainda é reconhecida na leitura e na aprovação de fichas antigas. 200 com a colaboradora (ativo: false); 404 se não existir."
+              }
+            },
+            {
+              "name": "Reativar colaboradora",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/colaboradores/{{colaboradorId}}/reativar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "colaboradores",
+                    "{{colaboradorId}}",
+                    "reativar"
+                  ]
+                },
+                "description": "Volta a aparecer no GET /colaboradores. 200 com a colaboradora (ativo: true); 404 se não existir."
               }
             }
-          }
-        },
-        {
-          "name": "Desativar usuário",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-CSRF-Token",
-                "value": "{{csrfToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/usuarios/{{usuarioAlvoId}}/inativar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "usuarios",
-                "{{usuarioAlvoId}}",
-                "inativar"
-              ]
-            },
-            "description": "Só gestor logado: faça antes o \"Entrar (login)\" da pasta 6 com um gestor (o cookie hemocentro_sessao fica no Postman e o csrfToken vai para a variável). Desativa o usuário {{usuarioAlvoId}}: o login dele passa a dar 401, as sessões abertas são encerradas e os links de troca de senha pendentes deixam de valer; esqueci-senha não manda mais e-mail. 200 com o usuário (ativo: false); 400 se for você mesmo; 401 sem sessão; 403 sem X-CSRF-Token ou se não for gestor; 404 se o usuário não existir; 409 se o sistema ficaria sem nenhum gestor ativo."
-          }
-        },
-        {
-          "name": "Reativar usuário",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-CSRF-Token",
-                "value": "{{csrfToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/usuarios/{{usuarioAlvoId}}/reativar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "usuarios",
-                "{{usuarioAlvoId}}",
-                "reativar"
-              ]
-            },
-            "description": "Só gestor logado (mesmo esquema do Desativar). Volta ativo: true; o usuário entra de novo com a senha que já tinha (as sessões antigas continuam encerradas). 200 com o usuário; 401, 403 e 404 como no Desativar."
-          }
-        },
-        {
-          "name": "Buscar colaboradoras",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/colaboradores?busca=mar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "colaboradores"
-              ],
-              "query": [
-                {
-                  "key": "busca",
-                  "value": "mar",
-                  "description": "Parte do nome",
-                  "disabled": false
-                }
-              ]
-            },
-            "description": "Profissionais citadas no papel. Mínimo 2 letras."
-          }
-        },
-        {
-          "name": "Criar colaboradora",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/colaboradores",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "colaboradores"
-              ]
-            },
-            "description": "201 com a colaboradora criada. O nome é gravado normalizado (\"maria DA silva\" → \"Maria da Silva\"); 409 se já existir o mesmo nome.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"nome\": \"Marcia\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
+          ]
         },
         {
           "name": "Buscar cidades",
@@ -1313,6 +1415,10 @@
     {
       "key": "usuarioAlvoId",
       "value": "2"
+    },
+    {
+      "key": "colaboradorId",
+      "value": "1"
     }
   ]
 }
