@@ -43,29 +43,58 @@ export class ColaboradorService {
     }));
   }
 
-  // shortcut: sem índice único no banco, dois cadastros simultâneos podem passar; trocar por @@unique se virar problema.
-  async criar(dto: CriarColaboradorDto) {
-    await this.exigirNomeLivre(dto.nome);
-    return this.prisma.colaborador.create({ data: dto });
+  /** Administração: lista todos, sem o limite da busca das fichas. */
+  async listarGerenciamento() {
+    const colaboradores = await this.prisma.colaborador.findMany({
+      orderBy: { nome: 'asc' },
+      select: {
+        id: true,
+        nome: true,
+        ativo: true,
+        usuario: { select: { id: true } },
+      },
+    });
+
+    return colaboradores.map(({ id, nome, ativo, usuario }) => ({
+      id,
+      nome,
+      ativo,
+      usuarioId: usuario?.id ?? null,
+    }));
+  }
+
+  criar(dto: CriarColaboradorDto) {
+    return this.salvar(dto);
   }
 
   /** 404 se não existir (filtro do Prisma); 409 se outro colaborador já tiver o nome. */
-  async alterar(id: number, dto: CriarColaboradorDto) {
-    await this.exigirNomeLivre(dto.nome, id);
-    return this.prisma.colaborador.update({ where: { id }, data: dto });
+  alterar(id: number, dto: CriarColaboradorDto) {
+    return this.salvar(dto, id);
   }
 
   definirAtivo(id: number, ativo: boolean) {
     return this.prisma.colaborador.update({ where: { id }, data: { ativo } });
   }
 
-  /** Mesmo nome sem diferenciar maiúsculas nem acentos, ignorando o próprio registro. */
-  private async exigirNomeLivre(nome: string, ignorarId = 0) {
-    const [existe] = await this.prisma.$queryRaw<{ id: number }[]>`
-      SELECT id FROM colaborador
-      WHERE unaccent(lower(nome)) = unaccent(lower(${nome})) AND id <> ${ignorarId} LIMIT 1`;
-    if (existe) {
-      throw new ConflictException(`Já existe colaborador com o nome "${nome}".`);
-    }
+  /** Confere e grava na mesma transação, impedindo duplicatas simultâneas por estas rotas. */
+  private salvar(dto: CriarColaboradorDto, id?: number) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const [existe] = await tx.$queryRaw<{ id: number }[]>`
+          SELECT id FROM colaborador
+          WHERE unaccent(lower(trim(nome))) = unaccent(lower(trim(${dto.nome})))
+            AND id <> ${id ?? 0}
+          LIMIT 1`;
+        if (existe) {
+          throw new ConflictException(
+            `Já existe colaborador com o nome "${dto.nome}", ativo ou inativo.`,
+          );
+        }
+        return id === undefined
+          ? tx.colaborador.create({ data: dto })
+          : tx.colaborador.update({ where: { id }, data: dto });
+      },
+      { isolationLevel: 'Serializable' },
+    );
   }
 }
